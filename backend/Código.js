@@ -54,40 +54,81 @@ const COL = {
   PROC_INTER:   24,   // Y  - proceso intervinientes
 };
 
+// Flujo de aprobación v2 — cadena secuencial colaborador → jefe → RRHH.
+// OBSERVADO y FUERA DE FLUJO viven fuera de la cadena (orden -1).
+// "Borrador" no es un estado: es derivado (= cualquier estado que no sea SELLADO).
 const ESTADOS_VALIDOS = [
   'PENDIENTE',
   'ENTREVISTADO',
+  'REVISIÓN COLABORADOR',
+  'REVISIÓN JEFE',
   'PRESENTADO A RRHH',
-  'REVISIÓN',
-  'COMPLETADO'
+  'SELLADO',
+  'OBSERVADO',
+  'FUERA DE FLUJO'
 ];
 
-// Orden canónico del flujo. REVISIÓN es lateral a PRESENTADO A RRHH (mismo nivel).
+// Orden canónico del flujo. OBSERVADO y FUERA DE FLUJO no participan de avances/reverses.
 const ORDEN_ESTADO = {
-  'PENDIENTE':         0,
-  'ENTREVISTADO':      1,
-  'PRESENTADO A RRHH': 2,
-  'REVISIÓN':          2,
-  'COMPLETADO':        3
+  'PENDIENTE':            0,
+  'ENTREVISTADO':         1,
+  'REVISIÓN COLABORADOR': 2,
+  'REVISIÓN JEFE':        3,
+  'PRESENTADO A RRHH':    4,
+  'SELLADO':              5,
+  'OBSERVADO':           -1,
+  'FUERA DE FLUJO':      -1
 };
 
 // Tabla de transiciones forward permitidas.
 // Cada entrada: { from, to, roles: [...], requiere: 'link' | 'observacion' | null }
+// Reglas finas (quién puede rebotar a quién, observaciones discriminadas por actor)
+// llegan en Fase 4. Por ahora cadena secuencial + rebote a OBSERVADO + reinyección admin.
 const TRANSICIONES = [
-  { from: 'PENDIENTE',         to: 'ENTREVISTADO',      roles: ['admin'], requiere: null },
-  { from: 'ENTREVISTADO',      to: 'PRESENTADO A RRHH', roles: ['admin'], requiere: 'link' },
-  { from: 'REVISIÓN',          to: 'PRESENTADO A RRHH', roles: ['admin'], requiere: null },
-  { from: 'PRESENTADO A RRHH', to: 'COMPLETADO',        roles: ['rrhh'],  requiere: null },
-  { from: 'PRESENTADO A RRHH', to: 'REVISIÓN',          roles: ['rrhh'],  requiere: 'observacion' }
+  // FORWARD admin — cadena secuencial
+  { from: 'PENDIENTE',            to: 'ENTREVISTADO',         roles: ['admin'], requiere: null },
+  { from: 'ENTREVISTADO',         to: 'REVISIÓN COLABORADOR', roles: ['admin'], requiere: null },
+  { from: 'REVISIÓN COLABORADOR', to: 'REVISIÓN JEFE',        roles: ['admin'], requiere: null },
+  { from: 'REVISIÓN JEFE',        to: 'PRESENTADO A RRHH',    roles: ['admin'], requiere: 'link' },
+
+  // FORWARD rrhh — último paso (sella)
+  { from: 'PRESENTADO A RRHH',    to: 'SELLADO',              roles: ['rrhh'],  requiere: null },
+
+  // REBOTE rrhh → admin (descriptivo con observaciones a corregir)
+  { from: 'PRESENTADO A RRHH',    to: 'OBSERVADO',            roles: ['rrhh'],  requiere: 'observacion' },
+
+  // OBSERVADO → cualquier estado de la cadena (admin permisivo: corrige y reinyecta donde corresponda)
+  { from: 'OBSERVADO',            to: 'PENDIENTE',            roles: ['admin'], requiere: null },
+  { from: 'OBSERVADO',            to: 'ENTREVISTADO',         roles: ['admin'], requiere: null },
+  { from: 'OBSERVADO',            to: 'REVISIÓN COLABORADOR', roles: ['admin'], requiere: null },
+  { from: 'OBSERVADO',            to: 'REVISIÓN JEFE',        roles: ['admin'], requiere: null },
+  { from: 'OBSERVADO',            to: 'PRESENTADO A RRHH',    roles: ['admin'], requiere: 'link' }
 ];
 
-// Normaliza valores legacy del Sheets al vocabulario canónico de 5 estados.
-// Variantes no reconocidas → 'PENDIENTE'.
+// Normaliza valores del Sheets al vocabulario canónico v2 (sin tocar la planilla).
+// Mapea legacy del v1 + typos comunes + casos especiales (jubilado, licencia, informe).
+// Cualquier basura no reconocida cae a PENDIENTE (default seguro).
 function normalizarEstado(raw) {
   const v = str(raw).toUpperCase();
+
+  // Vacío → default seguro
   if (!v) return 'PENDIENTE';
-  if (v === 'EN CONSTRUCCION' || v === 'EN CONSTRUCCIÓN') return 'ENTREVISTADO';
+
+  // Legacy / typos → vocabulario actual
+  if (v === 'ENTREVISTA' || v === 'ENTREISTADO' ||
+      v === 'EN CONSTRUCCION' || v === 'EN CONSTRUCCIÓN') return 'ENTREVISTADO';
+  if (v === 'REVISIÓN' || v === 'REVISION') return 'REVISIÓN COLABORADOR';
+  if (v === 'COMPLETADO') return 'SELLADO';
+
+  // Casos fuera del flujo (no se entrevistan ni se sellan)
+  if (v === 'JUBILADO' ||
+      v === 'LIC POR MATERNIDAD' || v === 'LICENCIA POR MATERNIDAD' ||
+      v === 'INFORME A REVISAR') return 'FUERA DE FLUJO';
+
+  // Estado válido → tal cual
   if (ESTADOS_VALIDOS.indexOf(v) >= 0) return v;
+
+  // Cualquier otra basura → PENDIENTE
   return 'PENDIENTE';
 }
 
@@ -105,13 +146,13 @@ function validarTransicion(estadoActual, estadoNuevo, rol, datosFila, observacio
     return { ok: false, error: 'No hay cambio de estado' };
   }
 
-  // Revertir COMPLETADO: solo admin + forzar:true (acto fuerte, descriptivo publicado)
-  if (actual === 'COMPLETADO') {
+  // Revertir SELLADO: solo admin + forzar:true (acto fuerte, descriptivo sellado/publicado)
+  if (actual === 'SELLADO') {
     if (r !== 'admin') {
-      return { ok: false, error: 'Solo el rol admin puede revertir un COMPLETADO' };
+      return { ok: false, error: 'Solo el rol admin puede revertir un SELLADO' };
     }
     if (!forzar) {
-      return { ok: false, error: 'COMPLETADO solo se puede revertir con flag forzar:true (requiere confirmación explícita del frontend)' };
+      return { ok: false, error: 'SELLADO solo se puede revertir con flag forzar:true (requiere confirmación explícita del frontend)' };
     }
     return { ok: true, esReverse: true };
   }
