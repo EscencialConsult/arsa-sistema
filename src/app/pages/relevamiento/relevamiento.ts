@@ -2,6 +2,7 @@ import { Component, OnInit, signal, computed } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { ApiService } from '../../services/api';
+import { estadoClass as estadoClassShared } from '../../shared/estados';
 
 const FAMILIAS = [
   { code: 'OPA', name: 'Operaciones Agua' },
@@ -494,13 +495,6 @@ export class Relevamiento implements OnInit {
   trackByLegajo(_: number, e: any): string { return e.legajo; }
 
   estadoClass(estado: string): string {
-    const m: Record<string, string> = {
-      'COMPLETADO': 'est-ok',
-      'REVISIÓN': 'est-rev',
-      'PRESENTADO A RRHH': 'est-pres',
-      'ENTREVISTADO': 'est-proc',
-      'PENDIENTE': 'est-pend',
-    };
-    return m[estado?.toUpperCase()] || 'est-pend';
+    return estadoClassShared(estado, 'relevamiento');
   }
 }

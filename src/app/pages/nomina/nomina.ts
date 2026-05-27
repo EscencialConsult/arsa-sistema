@@ -3,6 +3,7 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Subject, debounceTime, distinctUntilChanged, takeUntil } from 'rxjs';
 import { ApiService } from '../../services/api';
+import { estadoClass as estadoClassShared, estadoLabel as estadoLabelShared } from '../../shared/estados';
 
 export interface Empleado {
   codigo:          string;
@@ -249,25 +250,11 @@ if (this.rolUsuario === 'rrhh') {
 
   // ── Helpers CSS ───────────────────────────────────────────────────
   estadoClass(e: string): string {
-    const m: Record<string, string> = {
-      'COMPLETADO':   'b-ok',
-      'COMPLETADA':   'b-ok',
-      'REVISIÓN':     'b-rev',
-      'ENTREVISTADO': 'b-proc',
-      'EN PROCESO':   'b-proc',
-    };
-    return m[e?.toUpperCase()] || 'b-pend';
+    return estadoClassShared(e, 'nomina');
   }
 
   estadoLabel(e: string): string {
-    const m: Record<string, string> = {
-      'COMPLETADO':   'Presentado a RRHH',
-      'COMPLETADA':   'Presentado a RRHH',
-      'REVISIÓN':     'Revisión',
-      'ENTREVISTADO': 'Entrevistado',
-      'EN PROCESO':   'En proceso',
-    };
-    return m[e?.toUpperCase()] || 'Pendiente';
+    return estadoLabelShared(e);
   }
 
   catClass(cat: string): string {
