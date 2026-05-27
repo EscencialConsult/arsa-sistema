@@ -14,7 +14,7 @@
     </div>
   </div>
 
-  <!-- STATS -->
+  <!-- STATS — camino feliz: 6 cards + avance -->
   <div class="stats-row">
     <div class="stat-card">
       <div class="stat-num">{{ stats.total }}</div>
@@ -28,17 +28,18 @@
       <div class="stat-num">{{ stats.entrevistado }}</div>
       <div class="stat-label">Entrevistado</div>
     </div>
+    <div class="stat-card s-rev">
+      <div class="stat-num">{{ stats.revision }}</div>
+      <div class="stat-label">En revisión</div>
+      <div class="stat-sublabel">{{ stats.revColab }} C · {{ stats.revJefe }} J</div>
+    </div>
     <div class="stat-card s-pres">
       <div class="stat-num">{{ stats.presentadoRrhh }}</div>
       <div class="stat-label">Presentado a RRHH</div>
     </div>
-    <div class="stat-card s-rev">
-      <div class="stat-num">{{ stats.revision }}</div>
-      <div class="stat-label">Revisión</div>
-    </div>
     <div class="stat-card s-ok">
-      <div class="stat-num">{{ stats.completado }}</div>
-      <div class="stat-label">Completado</div>
+      <div class="stat-num">{{ stats.sellado }}</div>
+      <div class="stat-label">Sellado</div>
     </div>
     <div class="stat-card s-avance">
       <div class="stat-avance-top">
@@ -49,6 +50,16 @@
         <div class="progress-fill" [style.width.%]="stats.avance"></div>
       </div>
     </div>
+  </div>
+
+  <!-- Excepcionales (fuera del flujo lineal) -->
+  <div class="stats-excepciones" *ngIf="stats.observado || stats.fueraFlujo">
+    <span class="exc-item exc-obs">
+      <span class="exc-num">{{ stats.observado }}</span> con observación
+    </span>
+    <span class="exc-item exc-fuera">
+      <span class="exc-num">{{ stats.fueraFlujo }}</span> fuera de flujo
+    </span>
   </div>
 
   <!-- TOOLBAR -->
@@ -76,9 +87,12 @@
       <option value="">Todos los estados</option>
       <option value="PENDIENTE">Pendiente</option>
       <option value="ENTREVISTADO">Entrevistado</option>
+      <option value="REVISIÓN COLABORADOR">Revisión colaborador</option>
+      <option value="REVISIÓN JEFE">Revisión jefe</option>
       <option value="PRESENTADO A RRHH">Presentado a RRHH</option>
-      <option value="REVISIÓN">Revisión</option>
-      <option value="COMPLETADO">Completado</option>
+      <option value="SELLADO">Sellado</option>
+      <option value="OBSERVADO">Observado</option>
+      <option value="FUERA DE FLUJO">Fuera de flujo</option>
     </select>
   </div>
 
@@ -91,7 +105,7 @@
       <line x1="12" y1="16" x2="12.01" y2="16" />
     </svg>
     Para marcar como <strong>Presentado a RRHH</strong> el perfil debe tener el link definitivo cargado.
-    RRHH después revisa y decide pasarlo a Completado o devolverlo a Revisión con observaciones.
+    RRHH después revisa y decide sellarlo o devolverlo con comentarios.
   </div>
 
   <!-- SIN BÚSQUEDA -->
@@ -138,7 +152,7 @@
         <ng-container *ngFor="let e of empleados(); trackBy: trackByLegajo">
 
           <!-- FILA PRINCIPAL -->
-          <tr [class.fila-activa]="filaAbierta === e.legajo" [class.fila-publicada]="estaPublicado(e)">
+          <tr [class.fila-activa]="filaAbierta === e.legajo" [class.fila-publicada]="estaSellado(e)">
 
             <!-- Empleado -->
             <td class="td-empleado">
@@ -168,7 +182,7 @@
                   <option value="REVISIÓN">Revisión</option>
                   <option value="COMPLETADO">Completado</option>
                 </select>
-                <span *ngIf="estaPublicado(e)" class="badge-publicado">✓ Publicado</span>
+                <span *ngIf="estaSellado(e)" class="badge-publicado">✓ Publicado</span>
               </div>
             </td>
 
@@ -200,8 +214,8 @@
             <td class="td-link">
               <div class="td-link-inner">
 
-                <!-- Caso 1: publicado (COMPLETADO + link) -->
-                <ng-container *ngIf="estaPublicado(e)">
+                <!-- Caso 1: sellado (SELLADO + link) -->
+                <ng-container *ngIf="estaSellado(e)">
                   <a [href]="e.linkDefinitivo" target="_blank" class="link-doc link-publicado">
                     <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
                       stroke-linecap="round" stroke-linejoin="round">
@@ -213,8 +227,8 @@
                     title="Editar link">✎</button>
                 </ng-container>
 
-                <!-- Caso 2: tiene link pero NO completado -->
-                <ng-container *ngIf="!estaPublicado(e) && definitivoSinAprobar(e)">
+                <!-- Caso 2: tiene link pero NO sellado -->
+                <ng-container *ngIf="!estaSellado(e) && definitivoSinAprobar(e)">
                   <a [href]="e.linkDefinitivo" target="_blank" class="link-doc link-def">
                     <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
                       stroke-linecap="round" stroke-linejoin="round">
@@ -229,14 +243,14 @@
                 </ng-container>
 
                 <!-- Caso 3: en REVISIÓN sin link -->
-                <ng-container *ngIf="!estaPublicado(e) && !e.linkDefinitivo && definitivoPendiente(e)">
+                <ng-container *ngIf="!estaSellado(e) && !e.linkDefinitivo && definitivoPendiente(e)">
                   <span class="badge-correccion">⚠ Requiere corrección</span>
                   <button *ngIf="puedeEditar" class="btn-cargar btn-cargar--alerta"
                     (click)="abrirModalLink(e, 'definitivo')">+ Cargar</button>
                 </ng-container>
 
                 <!-- Caso 4: sin link y sin estado especial -->
-                <ng-container *ngIf="!estaPublicado(e) && !e.linkDefinitivo && !definitivoPendiente(e)">
+                <ng-container *ngIf="!estaSellado(e) && !e.linkDefinitivo && !definitivoPendiente(e)">
                   <button *ngIf="puedeEditar" class="btn-cargar" (click)="abrirModalLink(e, 'definitivo')">+
                     Cargar</button>
                   <span *ngIf="!puedeEditar" class="sin-link">—</span>

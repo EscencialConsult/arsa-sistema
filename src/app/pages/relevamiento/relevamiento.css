@@ -134,6 +134,59 @@
   border-top: 3px solid #86c9a8;
 }
 
+.s-obs {
+  border-top: 3px solid #f0b890;
+}
+
+.s-fuera {
+  border-top: 3px solid #bcc4ce;
+}
+
+.stat-sublabel {
+  font-size: 10px;
+  font-weight: 500;
+  letter-spacing: .04em;
+  color: #7A9AAF;
+  margin-top: 4px;
+}
+
+/* Línea de excepcionales debajo del grid (OBSERVADO + FUERA DE FLUJO) */
+.stats-excepciones {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 22px;
+  margin: -8px 0 24px 4px;
+  font-size: 12px;
+  color: #5E7A8F;
+}
+
+.exc-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+}
+
+.exc-item::before {
+  content: '';
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  display: inline-block;
+}
+
+.exc-obs::before {
+  background: #f0b890;
+}
+
+.exc-fuera::before {
+  background: #bcc4ce;
+}
+
+.exc-num {
+  font-weight: 700;
+  color: #0A2E4A;
+}
+
 .s-avance {
   border-top: 3px solid #4BAED4;
   min-width: 160px;
@@ -381,6 +434,20 @@
   color: #2D7D5A;
   border-color: #86c9a8;
   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath d='M1 1l4 4 4-4' stroke='%232D7D5A' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");
+}
+
+.est-obs {
+  background-color: #fde4d6;
+  color: #A0411A;
+  border-color: #f0b890;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath d='M1 1l4 4 4-4' stroke='%23A0411A' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");
+}
+
+.est-fuera {
+  background-color: #e3e7eb;
+  color: #4a5560;
+  border-color: #bcc4ce;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath d='M1 1l4 4 4-4' stroke='%234a5560' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");
 }
 
 /* ── Links ──────────────────────────────────── */

@@ -275,10 +275,13 @@
   white-space: nowrap;
 }
 
-.b-ok   { background: #e8f5ee; color: #2D7D5A; }
-.b-rev  { background: #e8f0fb; color: #1A4F8A; }
-.b-proc { background: #fff4e8; color: #9A5020; }
-.b-pend { background: #f0f4f8; color: #5E7A8F; }
+.b-ok    { background: #e8f5ee; color: #2D7D5A; }
+.b-rev   { background: #e8f0fb; color: #1A4F8A; }
+.b-pres  { background: #f3e8fb; color: #6B3B9E; }
+.b-proc  { background: #fff4e8; color: #9A5020; }
+.b-obs   { background: #fde4d6; color: #A0411A; }
+.b-pend  { background: #f0f4f8; color: #5E7A8F; }
+.b-fuera { background: #e3e7eb; color: #4a5560; }
 
 /* ── Botón Ver ── */
 .btn-ver {

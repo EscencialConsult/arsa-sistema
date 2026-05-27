@@ -107,7 +107,19 @@ export class Relevamiento implements OnInit {
   guardadoMsg = '';
 
   // ── Stats ─────────────────────────────────────────────────────────
-  stats = { total: 860, pendiente: 0, entrevistado: 0, presentadoRrhh: 0, revision: 0, completado: 0, avance: 0 };
+  stats = {
+    total: 860,
+    pendiente: 0,
+    entrevistado: 0,
+    revision: 0,      // = revColab + revJefe (agrupado en la card "En revisión")
+    revColab: 0,
+    revJefe: 0,
+    presentadoRrhh: 0,
+    sellado: 0,
+    observado: 0,
+    fueraFlujo: 0,
+    avance: 0,        // sellado / (total - fueraFlujo)
+  };
 
   // ── Modal link ────────────────────────────────────────────────────
   modalLink: {
@@ -148,8 +160,8 @@ export class Relevamiento implements OnInit {
   }
 
   // ── Helpers de estado ─────────────────────────────────────────────
-  estaPublicado(emp: any): boolean {
-    return emp.estado?.toUpperCase() === 'COMPLETADO' && !!emp.linkDefinitivo;
+  estaSellado(emp: any): boolean {
+    return emp.estado?.toUpperCase() === 'SELLADO' && !!emp.linkDefinitivo;
   }
 
   definitivoPendiente(emp: any): boolean {
@@ -157,7 +169,7 @@ export class Relevamiento implements OnInit {
   }
 
   definitivoSinAprobar(emp: any): boolean {
-    return !!emp.linkDefinitivo && emp.estado?.toUpperCase() !== 'COMPLETADO';
+    return !!emp.linkDefinitivo && emp.estado?.toUpperCase() !== 'SELLADO';
   }
 
   tieneObservacion(emp: any): boolean {
@@ -171,14 +183,25 @@ export class Relevamiento implements OnInit {
         if (res.ok && res.data) {
           const d = res.data;
           const pe = d.porEstado || {};
+          const total    = d.total || 0;
+          const revColab = pe['REVISIÓN COLABORADOR'] || 0;
+          const revJefe  = pe['REVISIÓN JEFE'] || 0;
+          const sellado  = pe['SELLADO'] || pe['COMPLETADO'] || 0;
+          const fuera    = pe['FUERA DE FLUJO'] || 0;
+          // Avance: SELLADO sobre el universo en curso (saca FUERA DE FLUJO del denominador).
+          const denom    = Math.max(0, total - fuera);
           this.stats = {
-            total:          d.total || 0,
+            total,
             pendiente:      pe['PENDIENTE'] || 0,
             entrevistado:   pe['ENTREVISTADO'] || 0,
+            revColab,
+            revJefe,
+            revision:       revColab + revJefe,
             presentadoRrhh: pe['PRESENTADO A RRHH'] || 0,
-            revision:       pe['REVISIÓN'] || 0,
-            completado:     pe['COMPLETADO'] || 0,
-            avance:         d.avancePct || 0,
+            sellado,
+            observado:      pe['OBSERVADO'] || 0,
+            fueraFlujo:     fuera,
+            avance:         denom > 0 ? Math.round((sellado / denom) * 100) : 0,
           };
         }
       },
@@ -479,7 +502,7 @@ export class Relevamiento implements OnInit {
     const filas = this.empleados().map(e => [
       e.legajo, e.apellido_nombre, e.codigo,
       e.sedeName || e.sede, e.familiaNombre, e.estado,
-      this.estaPublicado(e) ? 'Sí' : 'No',
+      this.estaSellado(e) ? 'Sí' : 'No',
       e.linkBorrador || '', e.linkDefinitivo || ''
     ]);
     const csv = [headers, ...filas]

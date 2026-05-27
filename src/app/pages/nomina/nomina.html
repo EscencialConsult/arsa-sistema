@@ -46,9 +46,12 @@
       <option value="">Todos los estados</option>
       <option value="PENDIENTE">Pendiente</option>
       <option value="ENTREVISTADO">Entrevistado</option>
+      <option value="REVISIÓN COLABORADOR">Revisión colaborador</option>
+      <option value="REVISIÓN JEFE">Revisión jefe</option>
       <option value="PRESENTADO A RRHH">Presentado a RRHH</option>
-      <option value="REVISIÓN">Revisión</option>
-      <option value="COMPLETADO">Completado</option>
+      <option value="SELLADO">Sellado</option>
+      <option value="OBSERVADO">Observado</option>
+      <option value="FUERA DE FLUJO">Fuera de flujo</option>
     </select>
   </div>
 
@@ -167,8 +170,7 @@
         <select [(ngModel)]="form.estado_relev">
           <option value="PENDIENTE">Pendiente</option>
           <option value="ENTREVISTADO">Entrevistado</option>
-          <option value="REVISIÓN">Revisión</option>
-          <option value="COMPLETADO">Completado</option>
+          <option value="PRESENTADO A RRHH">Presentado a RRHH</option>
         </select>
       </div>
       <div class="modal-error" *ngIf="errorModal">{{ errorModal }}</div>
