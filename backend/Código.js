@@ -352,6 +352,94 @@ function loginEmpleado(legajo, password) {
   return { ok: true, data: safe };
 }
 
+// Pre-carga Usuarios indexado por legajo. Usado por getNomina para enriquecer cada fila
+// con `habilitado` sin hacer 860 lecturas individuales.
+function _loadUsuariosByLegajo() {
+  const map = {};
+  try {
+    const rows = _readRowsRaw(TAB_USUARIOS);
+    for (let i = 0; i < rows.length; i++) {
+      const u = rows[i];
+      if (u.legajo) map[String(u.legajo).trim()] = u;
+    }
+  } catch (e) {
+    // Si Usuarios no se puede leer (pestaña borrada, permisos, etc.), devolver mapa vacío.
+    // Consecuencia: habilitado quedará false para todos. Mejor que romper la pantalla entera.
+  }
+  return map;
+}
+
+// Devuelve true si el usuario tiene HABILITADO COLABORADOR = SI en Usuarios.
+function _esHabilitado(usuarioRow) {
+  if (!usuarioRow) return false;
+  return String(usuarioRow['HABILITADO COLABORADOR'] || '').toUpperCase() === 'SI';
+}
+
+// Habilita el acceso del empleado al sistema:
+//  1. Valida el estado actual del descriptivo (debe estar en ENTREVISTADO o REVISIÓN COLABORADOR)
+//  2. Actualiza password + HABILITADO COLABORADOR = SI en Usuarios
+//  3. Si estado era ENTREVISTADO, lo pasa a REVISIÓN COLABORADOR (apertura del flujo al colaborador)
+//     Si estado era REVISIÓN COLABORADOR, no toca estado (caso reset de password)
+//
+//  Idempotente para resets: el admin puede llamarlo varias veces con distinta pwd y queda OK.
+function habilitarColaborador(legajo, password) {
+  if (!legajo)   return { ok: false, error: 'Falta legajo' };
+  if (!password) return { ok: false, error: 'Falta contraseña' };
+
+  // 1) Localizar la fila del empleado en el Nomenclador para validar el estado actual
+  const hoja  = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(HOJA);
+  const datos = hoja.getDataRange().getValues();
+  let rowIndex = -1;
+  let fila = null;
+  for (let i = FILA_INICIO - 1; i < datos.length; i++) {
+    if (str(datos[i][COL.LEGAJO]) === str(legajo)) {
+      rowIndex = i;
+      fila = datos[i];
+      break;
+    }
+  }
+  if (rowIndex < 0) {
+    return { ok: false, error: 'Legajo no encontrado en el nomenclador: ' + legajo };
+  }
+
+  const estadoActual = normalizarEstado(fila[COL.ESTADO]);
+  let cambiarEstadoA = null;
+  if (estadoActual === 'ENTREVISTADO') {
+    cambiarEstadoA = 'REVISIÓN COLABORADOR';
+  } else if (estadoActual === 'REVISIÓN COLABORADOR') {
+    cambiarEstadoA = null;  // reset de pwd, no toca estado
+  } else {
+    return {
+      ok: false,
+      error: 'Solo se puede habilitar desde ENTREVISTADO o REVISIÓN COLABORADOR. Estado actual: ' + estadoActual
+    };
+  }
+
+  // 2) Actualizar Usuarios: password + HABILITADO COLABORADOR = SI
+  const updateResult = updateRow(TAB_USUARIOS, 'legajo', {
+    legajo: String(legajo),
+    password: String(password),
+    'HABILITADO COLABORADOR': 'SI'
+  });
+  if (!updateResult.ok) {
+    return { ok: false, error: 'No pude actualizar Usuarios: ' + updateResult.error };
+  }
+
+  // 3) Cambiar estado del Nomenclador si corresponde
+  if (cambiarEstadoA) {
+    hoja.getRange(rowIndex + 1, COL.ESTADO + 1).setValue(cambiarEstadoA);
+  }
+
+  return {
+    ok: true,
+    legajo: String(legajo),
+    estadoAnterior: estadoActual,
+    estado: cambiarEstadoA || estadoActual,
+    habilitado: true,
+    esReset: cambiarEstadoA === null
+  };
+}
+
 
 // ══════════════════════════════════════════════════════════════════
 //  LINKS / preview
@@ -513,6 +601,10 @@ function getNomina(p, rol) {
 
   if (!hayFiltro && !all) return { ok: true, total: 0, data: [], vacio: true };
 
+  // Pre-load Usuarios indexado por legajo para enriquecer cada fila con `habilitado`.
+  // Lectura única (una sola pasada a la pestaña Usuarios), después O(1) por fila.
+  const usuariosMap = _loadUsuariosByLegajo();
+
   const lista = [];
 
   for (let i = FILA_INICIO - 1; i < datos.length; i++) {
@@ -575,6 +667,8 @@ function getNomina(p, rol) {
       linkBorrador:  str(f[COL.LINK_BORRAD]),
       linkDefinitivo:str(f[COL.LINK_DEFIN]),
       dominio:       str(f[COL.DOMINIO]),
+      telefono:      str(f[COL.TELEFONO]),
+      habilitado:    _esHabilitado(usuariosMap[legajo]),
     };
 
     // Campos privados — solo admin y rrhh (usa rolNorm para tolerar 'RRHH' mayúscula del Sheets)
@@ -670,6 +764,7 @@ function doPost(e) {
       case 'saveProcedimiento':   res = saveProcedimiento(body.data); break;
       case 'createProcedimiento': res = createProcedimiento(body.data); break;
       case 'createUsuario':       res = createRow(TAB_USUARIOS, body.data, 'usuario'); break;
+      case 'habilitarColaborador': res = habilitarColaborador(body.data && body.data.legajo, body.data && body.data.password); break;
       default: res = { ok: false, error: 'Acción no reconocida' };
     }
     return json(res);
