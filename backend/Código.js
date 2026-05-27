@@ -804,7 +804,7 @@ function actualizarEstado(legajo, nuevoEstado, rol, observacion, forzar) {
   hoja.getRange(rowIndex + 1, COL.ESTADO + 1).setValue(nuevo);
 
   let observacionGuardada = false;
-  if (nuevo === 'REVISIÓN' && str(observacion)) {
+  if (str(observacion)) {
     hoja.getRange(rowIndex + 1, COL.OBSERVACION + 1).setValue(observacion);
     observacionGuardada = true;
   }
