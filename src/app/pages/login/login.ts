@@ -27,15 +27,30 @@ export class LoginComponent {
     }
     this.cargando = true;
     this.error = '';
+
+    // Cascada: primero pruebo como admin/rrhh/gerente (busca por columna `usuario`).
+    // Si falla, pruebo como empleado (busca por `legajo`). Si ambos fallan, mensaje único.
     this.api.login(this.usuario, this.password).subscribe({
+      next: (res) => {
+        if (res.ok) {
+          this.entrar(res.data);
+        } else {
+          this.probarComoEmpleado();
+        }
+      },
+      error: () => this.probarComoEmpleado(),
+    });
+  }
+
+  private probarComoEmpleado(): void {
+    this.api.loginEmpleado(this.usuario, this.password).subscribe({
       next: (res) => {
         this.cargando = false;
         if (res.ok) {
-          localStorage.setItem('rol', res.data.rol);
-          localStorage.setItem('usuario', JSON.stringify(res.data));
-          this.router.navigate(['/dashboard']);
+          this.entrar(res.data);
         } else {
-          this.error = res.error;
+          // Mensaje único, no revela cuál falló (anti-enumeration).
+          this.error = 'Usuario o contraseña incorrectos';
         }
       },
       error: () => {
@@ -43,6 +58,14 @@ export class LoginComponent {
         this.error = 'Error de conexión. Intentá de nuevo.';
       }
     });
+  }
+
+  private entrar(data: any): void {
+    this.cargando = false;
+    localStorage.setItem('rol', data.rol);
+    localStorage.setItem('usuario', JSON.stringify(data));
+    const rol = (data.rol || '').toLowerCase();
+    this.router.navigate([rol === 'empleado' ? '/mi-descriptivo' : '/dashboard']);
   }
 
   loginRapido(rol: string) {

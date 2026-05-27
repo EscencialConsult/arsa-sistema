@@ -22,6 +22,16 @@ export class ApiService {
     return this.http.get(this.url, { params });
   }
 
+  // Login del empleado por legajo. El frontend prueba primero login() y si falla
+  // cae acá — el input "Usuario" acepta cualquier cosa, el sistema decide.
+  loginEmpleado(legajo: string, password: string): Observable<any> {
+    const params = new HttpParams()
+      .set('action', 'loginEmpleado')
+      .set('legajo', legajo)
+      .set('password', password);
+    return this.http.get(this.url, { params });
+  }
+
   stats(): Observable<any> {
     const params = new HttpParams().set('action', 'stats');
     return this.http.get(this.url, { params });

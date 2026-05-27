@@ -416,10 +416,12 @@ function habilitarColaborador(legajo, password, telefono) {
     };
   }
 
-  // 2) Actualizar Usuarios: password + HABILITADO COLABORADOR = SI
+  // 2) Actualizar Usuarios: password + activo + HABILITADO COLABORADOR = SI
+  // activo es chequeado por loginEmpleado, así que habilitar también lo activa.
   const updateResult = updateRow(TAB_USUARIOS, 'legajo', {
     legajo: String(legajo),
     password: String(password),
+    activo: 'SI',
     'HABILITADO COLABORADOR': 'SI'
   });
   if (!updateResult.ok) {
