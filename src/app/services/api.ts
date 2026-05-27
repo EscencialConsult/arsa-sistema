@@ -2,6 +2,11 @@ import { Injectable } from '@angular/core';
 import { HttpClient, HttpParams } from '@angular/common/http';
 import { Observable, from } from 'rxjs';
 
+// URL pública del sistema (cliente). Se usa para armar links que viajan
+// fuera de la app (ej. el link al login que se manda al empleado por WhatsApp).
+// Cuando ARSA pase a dominio propio, cambiar solo esta línea.
+export const APP_URL = 'https://arsa-sistema-gestion-personal.netlify.app';
+
 @Injectable({ providedIn: 'root' })
 export class ApiService {
 

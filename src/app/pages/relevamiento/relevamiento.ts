@@ -1,7 +1,7 @@
 import { Component, OnInit, signal, computed } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { ApiService } from '../../services/api';
+import { ApiService, APP_URL } from '../../services/api';
 import {
   estadoClass as estadoClassShared,
   estadoLabel as estadoLabelShared,
@@ -127,13 +127,6 @@ export class Relevamiento implements OnInit {
   };
 
   // ── Modal link ────────────────────────────────────────────────────
-  modalLink: {
-    abierto: boolean;
-    tipo: 'borrador' | 'definitivo';
-    empleado: any;
-    url: string;
-  } = { abierto: false, tipo: 'borrador', empleado: null, url: '' };
-
   // ── Modal avance (con nota opcional para el próximo revisor) ─────
   modalAvance: {
     abierto: boolean;
@@ -141,6 +134,21 @@ export class Relevamiento implements OnInit {
     destino: string;
     texto: string;
   } = { abierto: false, empleado: null, destino: '', texto: '' };
+
+  // ── Modal habilitar (B2.2 + B2.3 — solo password; el tel se guarda
+  //    junto con todos los datos del panel ANTES de abrir este modal) ─
+  modalHabilitar: {
+    abierto: boolean;
+    empleado: any;
+    password: string;
+    error: string;
+    guardando: boolean;
+    exito: boolean;       // true tras habilitar OK → modo "éxito con CTA manual"
+    waUrl: string;        // link wa.me listo para el anchor (cuando exito = true)
+  } = { abierto: false, empleado: null, password: '', error: '', guardando: false, exito: false, waUrl: '' };
+
+  // Flag para evitar dobles clicks en "Guardar cambios" / "Habilitar".
+  guardandoPanel = false;
 
   // ── Internos ──────────────────────────────────────────────────────
   private todosLosEmpleados: any[] = [];
@@ -194,6 +202,23 @@ export class Relevamiento implements OnInit {
 
   estadoLabel(estado: string): string {
     return estadoLabelShared(estado);
+  }
+
+  // ── Validaciones del panel ──────────────────────────────────────
+  passwordValida(pwd: string): boolean {
+    return !!pwd && pwd.length >= 6;
+  }
+
+  telefonoValido(tel: string): boolean {
+    // Debe arrancar con +54 9 o 54 9, seguido de área (2-4 dígitos) + número (6-8).
+    return /^\s*(\+?54\s?9)\s?\d{2,4}\s?\d{6,8}\s*$/.test(tel || '');
+  }
+
+  // Precarga el prefijo "+54 9 " cuando el admin hace foco en un campo de teléfono vacío.
+  // Si después borra todo (incluido el prefijo) el campo vuelve a quedar vacío — el save
+  // acepta vacío, así que no hay riesgo de persistir un prefijo huérfano.
+  prefilTelefono(emp: any): void {
+    if (!emp.telefono) emp.telefono = '+54 9 ';
   }
 
   // ── Stats desde ApiService ────────────────────────────────────────
@@ -267,6 +292,8 @@ export class Relevamiento implements OnInit {
             transcripcion:   r.transcripcion || '',
             eneagrama:       r.eneagrama || '',
             observacion:     r.observacion || '',
+            habilitado:      !!r.habilitado,
+            telefono:        r.telefono || '',
           }));
           this.aplicarFiltros();
         } else {
@@ -418,77 +445,55 @@ export class Relevamiento implements OnInit {
     this.filaAbierta = this.filaAbierta === legajo ? '' : legajo;
   }
 
-  // ── Guardar privados ──────────────────────────────────────────────
-  guardarPrivados(emp: any): void {
+  // Abre un link en pestaña nueva (deshabilitado en la UI si está vacío).
+  abrirLink(url: string) {
+    if (!url) return;
+    window.open(url, '_blank', 'noopener,noreferrer');
+  }
+
+  // ── Guardar todo el panel ─────────────────────────────────────────
+  // Persiste links + telefono + privados en una sola llamada a updateEntrevista.
+  // Usado por el botón "Guardar cambios" del footer, Y por el flujo Habilitar
+  // (que llama a esto antes de habilitarColaborador).
+  guardarTodo(emp: any, onOk?: () => void, onErr?: () => void): void {
+    if (this.guardandoPanel) return;
+    this.guardandoPanel = true;
     this.api.post({
       action: 'updateEntrevista',
       data: {
-        id_entrevista: emp.legajo,
-        transcripcion: emp.transcripcion || '',
-        eneagrama: emp.eneagrama || '',
-        observacion_privada: emp.observacion || '',
-        rol: this.rolUsuario,
+        id_entrevista:        emp.legajo,
+        link_sin_revision:    emp.linkBorrador || '',
+        link_definitivo:      emp.linkDefinitivo || '',
+        telefono:             emp.telefono || '',
+        transcripcion:        emp.transcripcion || '',
+        eneagrama:            emp.eneagrama || '',
+        observacion_privada:  emp.observacion || '',
+        rol:                  this.rolUsuario,
       }
     }).subscribe({
       next: (res) => {
+        this.guardandoPanel = false;
         if (res.ok) {
           this.guardadoMsg = emp.legajo;
           setTimeout(() => this.guardadoMsg = '', 3000);
+          if (onOk) onOk();
         } else {
           this.errorMsg.set(res.error || 'Error al guardar');
+          if (onErr) onErr();
         }
       },
-      error: () => { this.errorMsg.set('Error de conexión'); }
-    });
-  }
-
-  // ── Modal link ────────────────────────────────────────────────────
-  abrirModalLink(emp: any, tipo: 'borrador' | 'definitivo') {
-    this.modalLink = {
-      abierto: true, tipo, empleado: emp,
-      url: tipo === 'borrador' ? (emp.linkBorrador || '') : (emp.linkDefinitivo || '')
-    };
-  }
-
-  cerrarModal() {
-    this.modalLink = { abierto: false, tipo: 'borrador', empleado: null, url: '' };
-  }
-
-  confirmarLink(): void {
-    if (!this.modalLink.url || !this.modalLink.empleado) return;
-    const { empleado: emp, tipo, url } = this.modalLink;
-    const urlLimpia = url.trim();
-
-    this.api.post({
-      action: 'updateEntrevista',
-      data: {
-        id_entrevista: emp.legajo,
-        link_sin_revision: tipo === 'borrador' ? urlLimpia : undefined,
-        link_definitivo: tipo === 'definitivo' ? urlLimpia : undefined,
-        rol: this.rolUsuario,
+      error: () => {
+        this.guardandoPanel = false;
+        this.errorMsg.set('Error de conexión');
+        if (onErr) onErr();
       }
-    }).subscribe({
-      next: (res) => {
-        if (res.ok) {
-          this.empleados.update(l => l.map(e => {
-            if (e.legajo !== emp.legajo) return e;
-            return tipo === 'borrador'
-              ? { ...e, linkBorrador: urlLimpia }
-              : { ...e, linkDefinitivo: urlLimpia };
-          }));
-          this.todosLosEmpleados = this.todosLosEmpleados.map(e => {
-            if (e.legajo !== emp.legajo) return e;
-            return tipo === 'borrador'
-              ? { ...e, linkBorrador: urlLimpia }
-              : { ...e, linkDefinitivo: urlLimpia };
-          });
-          this.cerrarModal();
-        } else {
-          this.errorMsg.set(res.error || 'Error al guardar link');
-        }
-      },
-      error: () => { this.errorMsg.set('Error de conexión'); }
     });
+  }
+
+  puedeGuardarTodo(emp: any): boolean {
+    if (this.rolUsuario !== 'admin') return false;
+    // Permitir guardar si el tel está vacío o válido. Bloquear si está mal escrito.
+    return !emp.telefono || this.telefonoValido(emp.telefono);
   }
 
   // ── Modal avance (con nota opcional para el próximo revisor) ──────
@@ -507,6 +512,149 @@ export class Relevamiento implements OnInit {
     if (!empleado || !destino) return;
     this.ejecutarAvance(empleado, destino, texto.trim());
     this.modalAvance = { abierto: false, empleado: null, destino: '', texto: '' };
+  }
+
+  // ── Modal habilitar acceso (B2.2 + B2.3) ──────────────────────────
+  // Habilitar requiere link del borrador + teléfono válido (ya en el panel).
+  puedeAbrirHabilitar(emp: any): boolean {
+    return this.rolUsuario === 'admin'
+      && !!emp.linkBorrador
+      && this.telefonoValido(emp.telefono);
+  }
+
+  // Texto que explica al admin qué falta para poder habilitar.
+  hintHabilitar(emp: any): string {
+    const faltaTel  = !this.telefonoValido(emp.telefono);
+    const faltaBorr = !emp.linkBorrador;
+    if (faltaTel && faltaBorr) return 'Cargá el teléfono y el link del borrador para habilitar.';
+    if (faltaTel)              return 'Cargá el teléfono para habilitar.';
+    if (faltaBorr)             return 'Cargá el link del borrador para habilitar.';
+    return '';
+  }
+
+  abrirModalHabilitar(emp: any) {
+    // Confirm previo si es reset (la pwd actual del empleado queda invalidada).
+    if (emp.habilitado) {
+      const ok = confirm('El empleado tendrá que usar la contraseña nueva. ¿Continuar?');
+      if (!ok) return;
+    }
+    this.modalHabilitar = { abierto: true, empleado: emp, password: '', error: '', guardando: false, exito: false, waUrl: '' };
+  }
+
+  cerrarModalHabilitar() {
+    this.modalHabilitar = { abierto: false, empleado: null, password: '', error: '', guardando: false, exito: false, waUrl: '' };
+  }
+
+  generarPasswordAleatoria() {
+    // 8 caracteres alfanuméricos sin chars confusos al dictar por teléfono (0/O/o, 1/l/I).
+    const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789';
+    let out = '';
+    for (let i = 0; i < 8; i++) {
+      out += chars[Math.floor(Math.random() * chars.length)];
+    }
+    this.modalHabilitar.password = out;
+  }
+
+  // Flujo Habilitar:
+  //   1) Abrir wa.me directamente con el mensaje pre-cargado (sincrónico, con el
+  //      user-gesture del click → la pestaña carga al instante, no se queda en blanco).
+  //   2) En paralelo, correr la cadena guardarTodo → habilitarColaborador.
+  //   3) Si algo falla, cerrar la pestaña y mostrar el error.
+  confirmarHabilitar(): void {
+    const m = this.modalHabilitar;
+    if (!m.empleado) return;
+    if (!this.passwordValida(m.password)) {
+      m.error = 'La contraseña debe tener al menos 6 caracteres.';
+      return;
+    }
+    m.error = '';
+    m.guardando = true;
+    const emp = m.empleado;
+    const password = m.password.trim();
+    const telefono = emp.telefono;
+    const telLimpio = (telefono || '').replace(/\D/g, '');
+    const mensaje = this.armarMensajeWhatsApp(emp, password);
+    const waUrl = `https://wa.me/${telLimpio}?text=${encodeURIComponent(mensaje)}`;
+
+    // Abrir wa.me directo (con URL completa) preserva el user-gesture y la pestaña
+    // empieza a cargar WhatsApp al instante. Apps Script tarda 1-3 seg en confirmar
+    // los POSTs, pero WhatsApp Web demora más en estar listo — el admin nunca ve
+    // un estado intermedio raro.
+    const ventanaWa = window.open(waUrl, '_blank');
+    const cerrarSiHaceFalta = () => {
+      if (ventanaWa && !ventanaWa.closed) ventanaWa.close();
+    };
+
+    this.guardarTodo(emp,
+      () => this.ejecutarHabilitar(emp, password, ventanaWa),
+      cerrarSiHaceFalta
+    );
+  }
+
+  private ejecutarHabilitar(emp: any, password: string, ventanaWa: Window | null): void {
+    const habilitadoAnt = emp.habilitado;
+    const estadoAnt     = emp.estado;
+    const estadoNuevo   = emp.estado?.toUpperCase() === 'ENTREVISTADO' ? 'REVISIÓN COLABORADOR' : emp.estado;
+    const telefono      = emp.telefono;
+
+    const aplicar = (next: any) => {
+      this.empleados.update(l =>
+        l.map(e => e.legajo === emp.legajo ? { ...e, ...next } : e)
+      );
+      this.todosLosEmpleados = this.todosLosEmpleados.map(e =>
+        e.legajo === emp.legajo ? { ...e, ...next } : e
+      );
+    };
+
+    aplicar({ habilitado: true, estado: estadoNuevo });
+
+    this.api.post({
+      action: 'habilitarColaborador',
+      data: { legajo: emp.legajo, password, telefono }
+    }).subscribe({
+      next: (res) => {
+        if (res.ok) {
+          if (ventanaWa && !ventanaWa.closed) {
+            // El navegador abrió la pestaña al toque → cerrar modal sin más.
+            this.cerrarModalHabilitar();
+          } else {
+            // Popup bloqueado → modal pasa a estado de éxito con un anchor
+            // grande que el admin clickea (anchors target=_blank NUNCA se bloquean).
+            const telLimpio = (telefono || '').replace(/\D/g, '');
+            const mensaje   = this.armarMensajeWhatsApp(emp, password);
+            this.modalHabilitar.exito     = true;
+            this.modalHabilitar.waUrl     = `https://wa.me/${telLimpio}?text=${encodeURIComponent(mensaje)}`;
+            this.modalHabilitar.guardando = false;
+          }
+          this.cargarStats();
+        } else {
+          // Revertir solo lo de habilitación; los datos del paso 1 quedan persistidos (intencional).
+          aplicar({ habilitado: habilitadoAnt, estado: estadoAnt });
+          if (ventanaWa && !ventanaWa.closed) ventanaWa.close();
+          this.modalHabilitar.guardando = false;
+          this.modalHabilitar.error = res.error || 'No se pudo habilitar.';
+        }
+      },
+      error: () => {
+        aplicar({ habilitado: habilitadoAnt, estado: estadoAnt });
+        if (ventanaWa && !ventanaWa.closed) ventanaWa.close();
+        this.cerrarModalHabilitar();
+        this.errorMsg.set('Error de conexión al habilitar.');
+      }
+    });
+  }
+
+  // ════════════════════════════════════════════════════════════════════
+  //  ✏ Editar acá el texto del mensaje WhatsApp para el empleado.
+  //  Las variables disponibles son:
+  //    APP_URL       → URL base del sistema (configurada en api.ts)
+  //    emp.legajo    → legajo del empleado
+  //    password      → contraseña que el admin acaba de generar/tipear
+  //  El link DEBE apuntar a /login (no a /mi-descriptivo): el empleado
+  //  tiene que loguearse primero; el sistema lo redirige solo después.
+  // ════════════════════════════════════════════════════════════════════
+  private armarMensajeWhatsApp(emp: any, password: string): string {
+    return `¡Hola!\n\nTe escribimos por la actualización de descriptivos de puesto que se está haciendo en ARSA. Tu descriptivo ya está listo para que lo revises — son unos minutos y nos ayuda a confirmar que refleja bien lo que hacés.\n\nPara entrar:\n${APP_URL}/login\n\nTus datos:\n- Legajo: ${emp.legajo}\n- Contraseña: ${password}\n\nCualquier comentario, respondé este mismo mensaje. ¡Gracias!`;
   }
 
   // ── Limpiar ───────────────────────────────────────────────────────
@@ -541,7 +689,6 @@ export class Relevamiento implements OnInit {
     a.click();
   }
 
-  abrirLink(url: string) { if (url) window.open(url, '_blank'); }
   trackByLegajo(_: number, e: any): string { return e.legajo; }
 
   estadoClass(estado: string): string {

@@ -143,8 +143,6 @@
           <th>Sede</th>
           <th>Familia</th>
           <th>Estado</th>
-          <th>Borrador</th>
-          <th>Definitivo</th>
           <th></th>
         </tr>
       </thead>
@@ -188,80 +186,7 @@
               </div>
             </td>
 
-            <!-- Borrador — UN solo bloque con if/else -->
-            <td class="td-link">
-              <div class="td-link-inner">
-                <ng-container *ngIf="e.linkBorrador; else sinBorrador">
-                  <a [href]="e.linkBorrador" target="_blank" class="link-doc">
-                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
-                      stroke-linecap="round" stroke-linejoin="round">
-                      <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
-                      <polyline points="14 2 14 8 20 8" />
-                    </svg>
-                    Ver
-                  </a>
-                  <!-- Solo Admin puede editar el link -->
-                  <button *ngIf="puedeEditar" class="btn-edit-link" (click)="abrirModalLink(e, 'borrador')"
-                    title="Editar link">✎</button>
-                </ng-container>
-                <ng-template #sinBorrador>
-                  <button *ngIf="puedeEditar" class="btn-cargar" (click)="abrirModalLink(e, 'borrador')">+ Cargar</button>
-                  <!-- RRHH sin link: solo guion -->
-                  <span *ngIf="!puedeEditar" class="sin-link">—</span>
-                </ng-template>
-              </div>
-            </td>
-
-            <!-- Definitivo — UN solo bloque, condiciones mutuamente excluyentes -->
-            <td class="td-link">
-              <div class="td-link-inner">
-
-                <!-- Caso 1: sellado (SELLADO + link) -->
-                <ng-container *ngIf="estaSellado(e)">
-                  <a [href]="e.linkDefinitivo" target="_blank" class="link-doc link-publicado">
-                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
-                      stroke-linecap="round" stroke-linejoin="round">
-                      <polyline points="20 6 9 17 4 12" />
-                    </svg>
-                    Publicado
-                  </a>
-                  <button *ngIf="puedeEditar" class="btn-edit-link" (click)="abrirModalLink(e, 'definitivo')"
-                    title="Editar link">✎</button>
-                </ng-container>
-
-                <!-- Caso 2: tiene link pero NO sellado -->
-                <ng-container *ngIf="!estaSellado(e) && definitivoSinAprobar(e)">
-                  <a [href]="e.linkDefinitivo" target="_blank" class="link-doc link-def">
-                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
-                      stroke-linecap="round" stroke-linejoin="round">
-                      <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
-                      <polyline points="14 2 14 8 20 8" />
-                    </svg>
-                    Ver
-                  </a>
-                  <span class="badge-pendiente-aprobacion">Pendiente aprobación</span>
-                  <button *ngIf="puedeEditar" class="btn-edit-link" (click)="abrirModalLink(e, 'definitivo')"
-                    title="Editar link">✎</button>
-                </ng-container>
-
-                <!-- Caso 3: en REVISIÓN sin link -->
-                <ng-container *ngIf="!estaSellado(e) && !e.linkDefinitivo && definitivoPendiente(e)">
-                  <span class="badge-correccion">⚠ Requiere corrección</span>
-                  <button *ngIf="puedeEditar" class="btn-cargar btn-cargar--alerta"
-                    (click)="abrirModalLink(e, 'definitivo')">+ Cargar</button>
-                </ng-container>
-
-                <!-- Caso 4: sin link y sin estado especial -->
-                <ng-container *ngIf="!estaSellado(e) && !e.linkDefinitivo && !definitivoPendiente(e)">
-                  <button *ngIf="puedeEditar" class="btn-cargar" (click)="abrirModalLink(e, 'definitivo')">+
-                    Cargar</button>
-                  <span *ngIf="!puedeEditar" class="sin-link">—</span>
-                </ng-container>
-
-              </div>
-            </td>
-
-            <!-- Expandir campos privados -->
+            <!-- Expandir panel -->
             <td>
               <button *ngIf="esPrivilegiado" class="btn-detalle" [class.abierto]="filaAbierta === e.legajo"
                 (click)="toggleDetalle(e.legajo)" title="Campos privados">
@@ -273,11 +198,12 @@
             </td>
           </tr>
 
-          <!-- FILA EXPANDIDA — campos privados -->
+          <!-- FILA EXPANDIDA — panel completo del empleado -->
           <tr *ngIf="filaAbierta === e.legajo && esPrivilegiado" class="fila-privada">
-            <td colspan="8">
+            <td colspan="6">
               <div class="privado-wrap">
 
+                <!-- Alerta: comentarios de RRHH cuando el descriptivo está OBSERVADO -->
                 <div *ngIf="tieneObservacion(e)" class="alerta-revision">
                   <div class="alerta-revision-title">
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
@@ -292,35 +218,96 @@
                   <div class="alerta-revision-texto">{{ e.observacion }}</div>
                 </div>
 
-                <div class="privado-grid">
-                  <div class="privado-campo privado-campo--lg">
-                    <label class="priv-label">🔒 Transcripción de entrevista</label>
-                    <textarea class="priv-textarea" placeholder="Transcripción de la entrevista..."
-                      [(ngModel)]="e.transcripcion" [disabled]="!puedeEditar" rows="5">
-                    </textarea>
+                <!-- ── 📄 Documento del descriptivo ─────────────────────── -->
+                <div class="panel-seccion">
+                  <div class="panel-seccion-titulo">📄 Documento del descriptivo</div>
+                  <div class="panel-grid-2">
+                    <div class="panel-card">
+                      <label class="panel-label">Link del borrador</label>
+                      <div class="campo-con-accion">
+                        <input class="modal-input" type="url"
+                               placeholder="https://docs.google.com/..."
+                               [(ngModel)]="e.linkBorrador"
+                               [disabled]="!puedeEditar" />
+                        <button type="button" class="btn btn-s btn-sm"
+                                (click)="abrirLink(e.linkBorrador)"
+                                [disabled]="!e.linkBorrador">Ver</button>
+                      </div>
+                    </div>
+                    <div class="panel-card">
+                      <label class="panel-label">Link del definitivo</label>
+                      <div class="campo-con-accion">
+                        <input class="modal-input" type="url"
+                               placeholder="https://docs.google.com/..."
+                               [(ngModel)]="e.linkDefinitivo"
+                               [disabled]="!puedeEditar" />
+                        <button type="button" class="btn btn-s btn-sm"
+                                (click)="abrirLink(e.linkDefinitivo)"
+                                [disabled]="!e.linkDefinitivo">Ver</button>
+                      </div>
+                    </div>
                   </div>
+                </div>
 
-                  <div class="privado-col-right">
-                    <div class="privado-campo">
-                      <label class="priv-label">🔒 Eneagrama</label>
-                      <input class="priv-input" type="text" placeholder="Ej: 6.1" [(ngModel)]="e.eneagrama"
-                        [disabled]="!puedeEditar" />
-                    </div>
-
-                    <div class="privado-campo">
-                      <label class="priv-label">🔒 Observación interna</label>
-                      <textarea class="priv-textarea" placeholder="Observaciones del equipo..."
-                        [(ngModel)]="e.observacion" [disabled]="!puedeEditar" rows="4">
-                      </textarea>
-                    </div>
-
-                    <div class="privado-footer" *ngIf="puedeEditar">
-                      <button class="btn btn-p btn-sm" (click)="guardarPrivados(e)">
-                        Guardar cambios
+                <!-- ── 👤 Acceso del empleado ────────────────────────────── -->
+                <div class="panel-seccion">
+                  <div class="panel-seccion-titulo">👤 Acceso del empleado</div>
+                  <div class="panel-card">
+                    <div class="panel-grid-acceso">
+                      <div>
+                        <label class="panel-label">Teléfono <span class="panel-label-hint">— solo código de área + número, ej: 2944 123456</span></label>
+                        <input class="modal-input" type="tel"
+                               placeholder="+54 9 2944 123456"
+                               [(ngModel)]="e.telefono"
+                               (focus)="prefilTelefono(e)"
+                               [disabled]="!puedeEditar" />
+                      </div>
+                      <span class="acceso-badge" [class.acceso-on]="e.habilitado" [class.acceso-off]="!e.habilitado">
+                        {{ e.habilitado ? '● Habilitado' : '○ Sin habilitar' }}
+                      </span>
+                      <button *ngIf="puedeEditar" class="btn btn-habilitar"
+                              (click)="abrirModalHabilitar(e)"
+                              [disabled]="!puedeAbrirHabilitar(e)">
+                        {{ e.habilitado ? 'Resetear y reenviar' : 'Habilitar y enviar WhatsApp' }}
                       </button>
-                      <span *ngIf="guardadoMsg === e.legajo" class="guardado-ok">✓ Guardado</span>
+                    </div>
+                    <div *ngIf="puedeEditar && !puedeAbrirHabilitar(e)" class="panel-hint panel-hint--alerta">
+                      {{ hintHabilitar(e) }}
                     </div>
                   </div>
+                </div>
+
+                <!-- ── 🔒 Privado del equipo (admin/rrhh) ────────────────── -->
+                <div class="panel-seccion">
+                  <div class="panel-seccion-titulo">🔒 Privado del equipo</div>
+                  <div class="panel-grid-privado">
+                    <div class="panel-card">
+                      <label class="panel-label">Transcripción de entrevista</label>
+                      <textarea class="priv-textarea" placeholder="Transcripción de la entrevista..."
+                        [(ngModel)]="e.transcripcion" [disabled]="!puedeEditar" rows="7"></textarea>
+                    </div>
+                    <div class="panel-card panel-card--stack">
+                      <div>
+                        <label class="panel-label">Eneagrama</label>
+                        <input class="priv-input" type="text" placeholder="Ej: 6.1"
+                               [(ngModel)]="e.eneagrama" [disabled]="!puedeEditar" />
+                      </div>
+                      <div>
+                        <label class="panel-label">Observación interna</label>
+                        <textarea class="priv-textarea" placeholder="Observaciones del equipo..."
+                          [(ngModel)]="e.observacion" [disabled]="!puedeEditar" rows="4"></textarea>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Footer: botón único de guardado general -->
+                <div class="panel-footer" *ngIf="puedeEditar">
+                  <span *ngIf="guardadoMsg === e.legajo" class="guardado-ok">✓ Guardado</span>
+                  <button class="btn btn-p btn-sm" (click)="guardarTodo(e)"
+                          [disabled]="!puedeGuardarTodo(e) || guardandoPanel">
+                    {{ guardandoPanel ? 'Guardando...' : 'Guardar cambios' }}
+                  </button>
                 </div>
 
               </div>
@@ -346,34 +333,6 @@
 
 </div>
 
-<!-- MODAL LINK -->
-<div class="modal-overlay" *ngIf="modalLink.abierto" (click)="cerrarModal()">
-  <div class="modal" (click)="$event.stopPropagation()">
-    <div class="modal-header">
-      <div class="modal-title">
-        {{ modalLink.tipo === 'borrador' ? 'Link borrador' : 'Link definitivo' }}
-      </div>
-      <div class="modal-sub">{{ modalLink.empleado?.apellido_nombre }}</div>
-      <div *ngIf="modalLink.tipo === 'definitivo'" class="modal-aclaracion">
-        Una vez cargado el link, cambiá el estado a <strong>Presentado a RRHH</strong> para que sea revisado.
-      </div>
-      <button class="modal-close" (click)="cerrarModal()">✕</button>
-    </div>
-    <div class="modal-body">
-      <label class="modal-label">URL del Google Doc</label>
-      <input class="modal-input" type="url" placeholder="https://docs.google.com/..." [(ngModel)]="modalLink.url"
-        (keydown.enter)="confirmarLink()" />
-      <div class="modal-hint">Pegá el link del documento de Google Drive</div>
-    </div>
-    <div class="modal-footer">
-      <button class="btn btn-s" (click)="cerrarModal()">Cancelar</button>
-      <button class="btn btn-p" (click)="confirmarLink()" [disabled]="!modalLink.url">
-        Guardar link
-      </button>
-    </div>
-  </div>
-</div>
-
 <!-- MODAL AVANCE — al avanzar a un estado con revisor downstream -->
 <div class="modal-overlay" *ngIf="modalAvance.abierto" (click)="cerrarModalAvance()">
   <div class="modal" (click)="$event.stopPropagation()">
@@ -396,6 +355,74 @@
       <button class="btn btn-s" (click)="cerrarModalAvance()">Cancelar</button>
       <button class="btn btn-p" (click)="confirmarAvance()">
         Avanzar a {{ estadoLabel(modalAvance.destino) }}
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL HABILITAR — solo pwd. El teléfono ya está en el panel y se guarda
+     por guardarTodo() ANTES de habilitar. -->
+<div class="modal-overlay" *ngIf="modalHabilitar.abierto" (click)="cerrarModalHabilitar()">
+  <div class="modal" (click)="$event.stopPropagation()">
+    <div class="modal-header">
+      <div class="modal-title">
+        {{ modalHabilitar.empleado?.habilitado ? 'Resetear contraseña y reenviar' : 'Habilitar acceso del empleado' }}
+      </div>
+      <div class="modal-sub">
+        {{ modalHabilitar.empleado?.apellido_nombre }} — Legajo {{ modalHabilitar.empleado?.legajo }}
+      </div>
+      <button class="modal-close" (click)="cerrarModalHabilitar()">✕</button>
+    </div>
+
+    <!-- Modo "ingreso": admin carga contraseña -->
+    <div class="modal-body" *ngIf="!modalHabilitar.exito">
+      <label class="modal-label">Contraseña</label>
+      <div class="campo-con-accion">
+        <input class="modal-input" type="text" placeholder="Mínimo 6 caracteres"
+               [(ngModel)]="modalHabilitar.password" />
+        <button type="button" class="btn btn-s btn-sm" (click)="generarPasswordAleatoria()">Generar</button>
+      </div>
+      <div class="modal-hint">Mínimo 6 caracteres. La verá el empleado al loguearse.</div>
+
+      <div class="modal-aclaracion" style="margin-top: 14px;">
+        Al confirmar:
+        <ul class="modal-list">
+          <li>Se guardan TODOS los cambios del panel (links, teléfono, privados)</li>
+          <li>El empleado queda habilitado</li>
+          <li *ngIf="!modalHabilitar.empleado?.habilitado">Si está en Entrevistado, pasa a Revisión colaborador</li>
+          <li *ngIf="modalHabilitar.empleado?.habilitado">El estado del descriptivo <strong>no</strong> cambia (es reset)</li>
+          <li>Se abre WhatsApp con el mensaje listo para enviar</li>
+        </ul>
+      </div>
+
+      <div *ngIf="modalHabilitar.error" class="modal-error">{{ modalHabilitar.error }}</div>
+    </div>
+
+    <!-- Modo "éxito": habilitar OK pero la pestaña automática fue bloqueada
+         por el navegador → mostramos un anchor grande que el admin clickea. -->
+    <div class="modal-body modal-exito" *ngIf="modalHabilitar.exito">
+      <div class="exito-icon">✓</div>
+      <div class="exito-texto">
+        <strong>Acceso habilitado.</strong>
+        El navegador bloqueó la apertura automática de WhatsApp.
+        Tocá el botón para mandarle el mensaje al empleado:
+      </div>
+      <a class="btn btn-habilitar btn-wa-manual"
+         [href]="modalHabilitar.waUrl"
+         target="_blank"
+         rel="noopener noreferrer"
+         (click)="cerrarModalHabilitar()">
+        Enviar WhatsApp
+      </a>
+    </div>
+
+    <div class="modal-footer">
+      <button class="btn btn-s" (click)="cerrarModalHabilitar()" [disabled]="modalHabilitar.guardando">
+        {{ modalHabilitar.exito ? 'Cerrar' : 'Cancelar' }}
+      </button>
+      <button *ngIf="!modalHabilitar.exito" class="btn btn-p" (click)="confirmarHabilitar()"
+              [disabled]="modalHabilitar.guardando || !passwordValida(modalHabilitar.password)">
+        {{ modalHabilitar.guardando ? 'Guardando...' : 'Confirmar' }}
       </button>
     </div>
   </div>
