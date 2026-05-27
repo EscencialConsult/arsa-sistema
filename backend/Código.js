@@ -52,9 +52,10 @@ const COL = {
   ENEAGRAMA:    22,   // W  - eneagrama (privado)
   OBSERVACION:  23,   // X  - observación (privado)
   PROC_INTER:   24,   // Y  - proceso intervinientes
-  TELEFONO:     25,   // Z  - celular del empleado (para WhatsApp — Parte 2)
-  OBS_COLAB:    26,   // AA - observación que deja el empleado al revisar (Parte 3)
-  FECHA_COLAB:  27,   // AB - fecha de confirmación del empleado (Parte 3)
+  // Z..AF (idx 25..31) actualmente sin uso / con data legacy de Laura — no tocar.
+  TELEFONO:     32,   // AG - celular del empleado (para WhatsApp — Parte 2)
+  OBS_COLAB:    33,   // AH - observación que deja el empleado al revisar (Parte 3)
+  FECHA_COLAB:  34,   // AI - fecha de confirmación del empleado (Parte 3)
 };
 
 // Flujo de aprobación v2 — cadena secuencial colaborador → jefe → RRHH.
