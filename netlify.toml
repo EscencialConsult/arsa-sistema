@@ -1,0 +1,23 @@
+# ════════════════════════════════════════════════════════════════════
+#  Netlify — configuración del deploy del frontend ARSA
+#  Este archivo vive en la raíz del repo y manda sobre cualquier
+#  setting equivalente que esté tipeado en la web de Netlify.
+# ════════════════════════════════════════════════════════════════════
+
+[build]
+  command  = "npm run build"
+  publish  = "dist/arsa-sistema/browser"
+
+[build.environment]
+  # Angular 21 requiere Node 20.19+ o 22.12+. Fijamos LTS para evitar que
+  # Netlify use una versión vieja por default.
+  NODE_VERSION = "22"
+
+# ─── SPA fallback ──────────────────────────────────────────────────
+# Cualquier ruta interna (ej. /mi-descriptivo, /relevamiento, /nomina)
+# tiene que servir index.html para que el router de Angular maneje la
+# URL. Sin esto, recargar /mi-descriptivo da 404.
+[[redirects]]
+  from   = "/*"
+  to     = "/index.html"
+  status = 200
