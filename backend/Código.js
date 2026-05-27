@@ -856,8 +856,9 @@ function updateEntrevistaRouter(data) {
                         data.observacion_privada !== undefined;
   const tieneLinks    = data.link_sin_revision !== undefined ||
                         data.link_definitivo   !== undefined;
+  const tieneTelefono = data.telefono !== undefined;
 
-  if (!tieneEstado && !tienePrivados && !tieneLinks) {
+  if (!tieneEstado && !tienePrivados && !tieneLinks && !tieneTelefono) {
     return { ok: false, error: 'updateEntrevista sin campos reconocidos' };
   }
 
@@ -878,6 +879,12 @@ function updateEntrevistaRouter(data) {
     const r = guardarPrivados(legajo, data.transcripcion, data.eneagrama, data.observacion_privada);
     if (!r.ok) return r;
     resultados.privados = r;
+  }
+
+  if (tieneTelefono) {
+    const r = escribirCelda(legajo, COL.TELEFONO, String(data.telefono || ''));
+    if (!r.ok) return r;
+    resultados.telefono = r;
   }
 
   if (tieneEstado) {
