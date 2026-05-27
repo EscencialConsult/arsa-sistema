@@ -380,9 +380,10 @@ function _esHabilitado(usuarioRow) {
 //  2. Actualiza password + HABILITADO COLABORADOR = SI en Usuarios
 //  3. Si estado era ENTREVISTADO, lo pasa a REVISIÓN COLABORADOR (apertura del flujo al colaborador)
 //     Si estado era REVISIÓN COLABORADOR, no toca estado (caso reset de password)
+//  4. Si llega telefono, lo escribe en NOMENCLADOR.COL.TELEFONO (para el WhatsApp del admin)
 //
 //  Idempotente para resets: el admin puede llamarlo varias veces con distinta pwd y queda OK.
-function habilitarColaborador(legajo, password) {
+function habilitarColaborador(legajo, password, telefono) {
   if (!legajo)   return { ok: false, error: 'Falta legajo' };
   if (!password) return { ok: false, error: 'Falta contraseña' };
 
@@ -430,13 +431,20 @@ function habilitarColaborador(legajo, password) {
     hoja.getRange(rowIndex + 1, COL.ESTADO + 1).setValue(cambiarEstadoA);
   }
 
+  // 4) Teléfono opcional → escribir en NOMENCLADOR.COL.TELEFONO
+  const telefonoFinal = telefono ? String(telefono) : str(fila[COL.TELEFONO]);
+  if (telefono) {
+    hoja.getRange(rowIndex + 1, COL.TELEFONO + 1).setValue(telefonoFinal);
+  }
+
   return {
     ok: true,
     legajo: String(legajo),
     estadoAnterior: estadoActual,
     estado: cambiarEstadoA || estadoActual,
     habilitado: true,
-    esReset: cambiarEstadoA === null
+    esReset: cambiarEstadoA === null,
+    telefono: telefonoFinal
   };
 }
 
@@ -764,7 +772,7 @@ function doPost(e) {
       case 'saveProcedimiento':   res = saveProcedimiento(body.data); break;
       case 'createProcedimiento': res = createProcedimiento(body.data); break;
       case 'createUsuario':       res = createRow(TAB_USUARIOS, body.data, 'usuario'); break;
-      case 'habilitarColaborador': res = habilitarColaborador(body.data && body.data.legajo, body.data && body.data.password); break;
+      case 'habilitarColaborador': res = habilitarColaborador(body.data && body.data.legajo, body.data && body.data.password, body.data && body.data.telefono); break;
       default: res = { ok: false, error: 'Acción no reconocida' };
     }
     return json(res);
