@@ -52,6 +52,9 @@ const COL = {
   ENEAGRAMA:    22,   // W  - eneagrama (privado)
   OBSERVACION:  23,   // X  - observación (privado)
   PROC_INTER:   24,   // Y  - proceso intervinientes
+  TELEFONO:     25,   // Z  - celular del empleado (para WhatsApp — Parte 2)
+  OBS_COLAB:    26,   // AA - observación que deja el empleado al revisar (Parte 3)
+  FECHA_COLAB:  27,   // AB - fecha de confirmación del empleado (Parte 3)
 };
 
 // Flujo de aprobación v2 — cadena secuencial colaborador → jefe → RRHH.
@@ -321,6 +324,33 @@ function login(usuario, password) {
   return { ok: true, data: safe };
 }
 
+// Login del empleado: busca por LEGAJO (no por usuario), valida pwd + activo + HABILITADO COLABORADOR.
+// Una sola lectura — todo vive en Usuarios. Datos del descriptivo vienen en otro endpoint (Parte 3).
+function loginEmpleado(legajo, password) {
+  if (!legajo || !password) {
+    return { ok: false, error: 'Legajo y contraseña son obligatorios' };
+  }
+  const rows = _readRowsRaw(TAB_USUARIOS);
+  const user = rows.find(function(r) {
+    return String(r.legajo).trim() === String(legajo).trim();
+  });
+  // Mismo mensaje para legajo inexistente y pwd incorrecta (anti-enumeration)
+  if (!user) return { ok: false, error: 'Legajo o contraseña incorrectos' };
+  if (String(user.password) !== String(password)) {
+    return { ok: false, error: 'Legajo o contraseña incorrectos' };
+  }
+  if (!user.activo || user.activo.toUpperCase() !== 'SI') {
+    return { ok: false, error: 'Tu usuario está inactivo' };
+  }
+  const habilitado = String(user['HABILITADO COLABORADOR'] || '').toUpperCase();
+  if (habilitado !== 'SI') {
+    return { ok: false, error: 'Tu perfil todavía no está disponible para revisar' };
+  }
+  const safe = Object.assign({}, user);
+  delete safe.password;
+  return { ok: true, data: safe };
+}
+
 
 // ══════════════════════════════════════════════════════════════════
 //  LINKS / preview
@@ -442,6 +472,7 @@ function doGet(e) {
     else if (accion === 'familias')          res = { ok: true, data: FAMILIAS };
     else if (accion === 'sedes')             res = { ok: true, data: SEDES };
     else if (accion === 'login')             res = login(p.usuario, p.password);
+    else if (accion === 'loginEmpleado')     res = loginEmpleado(p.legajo, p.password);
     else if (accion === 'read')              res = (p.tab === 'Nomina')
                                                ? getNomina({ all: 'true' }, rol)
                                                : { ok: true, data: getRows(p.tab) };
