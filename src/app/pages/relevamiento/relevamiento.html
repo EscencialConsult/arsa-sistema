@@ -175,12 +175,14 @@
             <td>
               <div class="estado-wrap">
                 <select class="select-estado" [ngClass]="estadoClass(e.estado)" [ngModel]="e.estado"
-                  (change)="cambiarEstado(e, $any($event.target).value)" [disabled]="!puedeEditar">
-                  <option value="PENDIENTE">Pendiente</option>
-                  <option value="ENTREVISTADO">Entrevistado</option>
-                  <option value="PRESENTADO A RRHH">Presentado a RRHH</option>
-                  <option value="REVISIÓN">Revisión</option>
-                  <option value="COMPLETADO">Completado</option>
+                  (change)="cambiarEstado(e, $any($event.target).value)"
+                  [disabled]="!hayTransiciones(e)">
+                  <!-- Estado actual: queda como opción "vacía" para que el select muestre el valor -->
+                  <option [value]="e.estado">{{ estadoLabel(e.estado) }}</option>
+                  <!-- Transiciones válidas según rol + estado actual -->
+                  <option *ngFor="let t of transicionesPermitidas(e)" [value]="t.to">
+                    → {{ estadoLabel(t.to) }}
+                  </option>
                 </select>
                 <span *ngIf="estaSellado(e)" class="badge-publicado">✓ Publicado</span>
               </div>
@@ -285,7 +287,7 @@
                       <line x1="12" y1="9" x2="12" y2="13" />
                       <line x1="12" y1="17" x2="12.01" y2="17" />
                     </svg>
-                    En revisión — observación de RRHH
+                    Observado — comentarios de RRHH
                   </div>
                   <div class="alerta-revision-texto">{{ e.observacion }}</div>
                 </div>
@@ -372,29 +374,28 @@
   </div>
 </div>
 
-<!-- MODAL OBSERVACIÓN — al marcar REVISIÓN -->
-<div class="modal-overlay" *ngIf="modalObservacion.abierto" (click)="cerrarModalObservacion()">
+<!-- MODAL AVANCE — al avanzar a un estado con revisor downstream -->
+<div class="modal-overlay" *ngIf="modalAvance.abierto" (click)="cerrarModalAvance()">
   <div class="modal" (click)="$event.stopPropagation()">
     <div class="modal-header">
-      <div class="modal-title">Marcar para revisión</div>
-      <div class="modal-sub">{{ modalObservacion.empleado?.apellido_nombre }}</div>
+      <div class="modal-title">Avanzar a {{ estadoLabel(modalAvance.destino) }}</div>
+      <div class="modal-sub">{{ modalAvance.empleado?.apellido_nombre }}</div>
       <div class="modal-aclaracion">
-        Indicá qué tiene que corregir o aclarar para que el descriptivo quede aprobado.
+        Podés dejar un comentario para el próximo revisor. Es opcional.
       </div>
-      <button class="modal-close" (click)="cerrarModalObservacion()">✕</button>
+      <button class="modal-close" (click)="cerrarModalAvance()">✕</button>
     </div>
     <div class="modal-body">
-      <label class="modal-label">Observación de RRHH</label>
+      <label class="modal-label">Comentario (opcional)</label>
       <textarea class="modal-textarea" rows="5"
-        placeholder="Detallá los puntos a revisar..."
-        [(ngModel)]="modalObservacion.texto"></textarea>
-      <div class="modal-hint">Esta observación queda guardada y la ve el admin al volver a editar.</div>
+        placeholder="Aclaraciones, contexto o pendientes para quien revisa..."
+        [(ngModel)]="modalAvance.texto"></textarea>
+      <div class="modal-hint">La nota queda guardada y la ve quien siga el flujo.</div>
     </div>
     <div class="modal-footer">
-      <button class="btn btn-s" (click)="cerrarModalObservacion()">Cancelar</button>
-      <button class="btn btn-p" (click)="confirmarObservacion()"
-        [disabled]="!modalObservacion.texto.trim()">
-        Marcar para revisión
+      <button class="btn btn-s" (click)="cerrarModalAvance()">Cancelar</button>
+      <button class="btn btn-p" (click)="confirmarAvance()">
+        Avanzar a {{ estadoLabel(modalAvance.destino) }}
       </button>
     </div>
   </div>

@@ -2,7 +2,12 @@ import { Component, OnInit, signal, computed } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { ApiService } from '../../services/api';
-import { estadoClass as estadoClassShared } from '../../shared/estados';
+import {
+  estadoClass as estadoClassShared,
+  estadoLabel as estadoLabelShared,
+  transicionesValidas,
+  Transicion,
+} from '../../shared/estados';
 
 const FAMILIAS = [
   { code: 'OPA', name: 'Operaciones Agua' },
@@ -129,12 +134,13 @@ export class Relevamiento implements OnInit {
     url: string;
   } = { abierto: false, tipo: 'borrador', empleado: null, url: '' };
 
-  // ── Modal observación (al marcar REVISIÓN) ────────────────────────
-  modalObservacion: {
+  // ── Modal avance (con nota opcional para el próximo revisor) ─────
+  modalAvance: {
     abierto: boolean;
     empleado: any;
+    destino: string;
     texto: string;
-  } = { abierto: false, empleado: null, texto: '' };
+  } = { abierto: false, empleado: null, destino: '', texto: '' };
 
   // ── Internos ──────────────────────────────────────────────────────
   private todosLosEmpleados: any[] = [];
@@ -165,7 +171,7 @@ export class Relevamiento implements OnInit {
   }
 
   definitivoPendiente(emp: any): boolean {
-    return emp.estado?.toUpperCase() === 'REVISIÓN' && !emp.linkDefinitivo;
+    return emp.estado?.toUpperCase() === 'OBSERVADO' && !emp.linkDefinitivo;
   }
 
   definitivoSinAprobar(emp: any): boolean {
@@ -173,7 +179,21 @@ export class Relevamiento implements OnInit {
   }
 
   tieneObservacion(emp: any): boolean {
-    return emp.estado?.toUpperCase() === 'REVISIÓN' && !!emp.observacion;
+    return emp.estado?.toUpperCase() === 'OBSERVADO' && !!emp.observacion;
+  }
+
+  // ── Transiciones disponibles por fila ─────────────────────────────
+  transicionesPermitidas(emp: any): Transicion[] {
+    return transicionesValidas(emp.estado, this.rolUsuario);
+  }
+
+  hayTransiciones(emp: any): boolean {
+    if (this.rolUsuario !== 'admin' && this.rolUsuario !== 'rrhh') return false;
+    return this.transicionesPermitidas(emp).length > 0;
+  }
+
+  estadoLabel(estado: string): string {
+    return estadoLabelShared(estado);
   }
 
   // ── Stats desde ApiService ────────────────────────────────────────
@@ -297,48 +317,98 @@ export class Relevamiento implements OnInit {
   }
 
   // ── Cambiar estado ────────────────────────────────────────────────
+  // Estados a los que se avanza con modal (para que el actor pueda dejar
+  // una nota opcional para quien sigue aguas abajo).
+  private readonly ESTADOS_CON_MODAL = [
+    'REVISIÓN COLABORADOR',
+    'REVISIÓN JEFE',
+    'PRESENTADO A RRHH',
+  ];
+
   cambiarEstado(emp: any, nuevoEstado: string): void {
-    const anterior = emp.estado;
+    // Si el dropdown re-emitió el estado actual (caso normal cuando se cierra modal), no hacer nada.
+    if (!nuevoEstado || nuevoEstado === emp.estado) return;
 
-    if (nuevoEstado === 'PRESENTADO A RRHH' && !emp.linkDefinitivo) {
-      this.errorMsg.set(`${emp.apellido_nombre} no tiene link definitivo cargado. Cargá primero el link en la columna Definitivo antes de presentar a RRHH.`);
+    const trans = transicionesValidas(emp.estado, this.rolUsuario)
+      .find(t => t.to === nuevoEstado);
+
+    if (!trans) {
+      this.errorMsg.set('Transición no permitida');
+      setTimeout(() => this.errorMsg.set(''), 4000);
+      this.empleados.update(l => l.slice());  // re-render → select vuelve al estado real
+      return;
+    }
+
+    if (trans.requiere === 'link' && !emp.linkDefinitivo) {
+      this.errorMsg.set(`${emp.apellido_nombre} no tiene link definitivo cargado. Cargá el link en la columna Definitivo antes de avanzar.`);
       setTimeout(() => this.errorMsg.set(''), 5000);
+      this.empleados.update(l => l.slice());
       return;
     }
 
-    // Interceptar REVISIÓN — el backend requiere observación, abrimos modal en vez de POST.
-    // El reflejo + POST los hace confirmarObservacion() al confirmar.
-    if (nuevoEstado === 'REVISIÓN') {
-      this.abrirModalObservacion(emp);
+    // Reinyección desde OBSERVADO: si admin saltea pasos (no es PEND ni ENTREV),
+    // pedir confirmación.
+    const estadoActual = (emp.estado || '').toUpperCase();
+    if (estadoActual === 'OBSERVADO' && nuevoEstado !== 'PENDIENTE' && nuevoEstado !== 'ENTREVISTADO') {
+      const ok = confirm(`Vas a reinyectar a "${estadoLabelShared(nuevoEstado)}" — te salteás pasos del flujo. ¿Continuar?`);
+      if (!ok) {
+        this.empleados.update(l => l.slice());
+        return;
+      }
+    }
+
+    if (this.ESTADOS_CON_MODAL.indexOf(nuevoEstado) >= 0) {
+      this.abrirModalAvance(emp, nuevoEstado);
       return;
     }
 
-    // Reflejo inmediato en memoria
+    // POST directo (sin nota)
+    this.ejecutarAvance(emp, nuevoEstado, '');
+  }
+
+  // Ejecuta el cambio de estado con reflejo optimista y revert en error.
+  // observacion vacía = no se envía nota (el backend la persiste solo si viene con contenido).
+  private ejecutarAvance(emp: any, nuevoEstado: string, observacion: string): void {
+    const anterior    = emp.estado;
+    const obsAnterior = emp.observacion;
+    const obsNueva    = observacion || emp.observacion;
+
     this.empleados.update(l =>
-      l.map(e => e.legajo === emp.legajo ? { ...e, estado: nuevoEstado } : e)
+      l.map(e => e.legajo === emp.legajo ? { ...e, estado: nuevoEstado, observacion: obsNueva } : e)
     );
     this.todosLosEmpleados = this.todosLosEmpleados.map(e =>
-      e.legajo === emp.legajo ? { ...e, estado: nuevoEstado } : e
+      e.legajo === emp.legajo ? { ...e, estado: nuevoEstado, observacion: obsNueva } : e
     );
+
+    const revertir = () => {
+      this.empleados.update(l =>
+        l.map(e => e.legajo === emp.legajo ? { ...e, estado: anterior, observacion: obsAnterior } : e)
+      );
+      this.todosLosEmpleados = this.todosLosEmpleados.map(e =>
+        e.legajo === emp.legajo ? { ...e, estado: anterior, observacion: obsAnterior } : e
+      );
+    };
 
     this.api.post({
       action: 'updateEntrevista',
-      data: { id_entrevista: emp.legajo, estado: nuevoEstado, rol: this.rolUsuario }
+      data: {
+        id_entrevista: emp.legajo,
+        estado:        nuevoEstado,
+        observacion:   observacion,
+        rol:           this.rolUsuario,
+      }
     }).subscribe({
       next: (res) => {
-        if (!res.ok) {
-          this.empleados.update(l =>
-            l.map(e => e.legajo === emp.legajo ? { ...e, estado: anterior } : e)
-          );
-          this.errorMsg.set('Error al actualizar estado');
-        } else {
+        if (res.ok) {
           this.cargarStats();
+        } else {
+          revertir();
+          this.errorMsg.set(res.error || 'Error al actualizar estado');
         }
       },
       error: () => {
-        this.empleados.update(l =>
-          l.map(e => e.legajo === emp.legajo ? { ...e, estado: anterior } : e)
-        );
+        revertir();
+        this.errorMsg.set('Error de conexión');
       }
     });
   }
@@ -421,65 +491,22 @@ export class Relevamiento implements OnInit {
     });
   }
 
-  // ── Modal observación al marcar REVISIÓN ──────────────────────────
-  abrirModalObservacion(emp: any) {
-    this.modalObservacion = { abierto: true, empleado: emp, texto: '' };
+  // ── Modal avance (con nota opcional para el próximo revisor) ──────
+  abrirModalAvance(emp: any, destino: string) {
+    this.modalAvance = { abierto: true, empleado: emp, destino, texto: '' };
   }
 
-  cerrarModalObservacion() {
-    this.modalObservacion = { abierto: false, empleado: null, texto: '' };
-    // Forzar re-render del select para que vuelva a sincronizar con e.estado real
+  cerrarModalAvance() {
+    this.modalAvance = { abierto: false, empleado: null, destino: '', texto: '' };
+    // Re-render del select para que vuelva a sincronizar con e.estado real.
     this.empleados.update(l => l.slice());
   }
 
-  confirmarObservacion(): void {
-    const texto = this.modalObservacion.texto.trim();
-    const emp   = this.modalObservacion.empleado;
-    if (!texto || !emp) return;
-
-    const anterior = emp.estado;
-
-    // Reflejo optimista — estado + observación en memoria (el badge tieneObservacion lee e.observacion)
-    this.empleados.update(l =>
-      l.map(e => e.legajo === emp.legajo ? { ...e, estado: 'REVISIÓN', observacion: texto } : e)
-    );
-    this.todosLosEmpleados = this.todosLosEmpleados.map(e =>
-      e.legajo === emp.legajo ? { ...e, estado: 'REVISIÓN', observacion: texto } : e
-    );
-
-    this.api.post({
-      action: 'updateEntrevista',
-      data: {
-        id_entrevista: emp.legajo,
-        estado:        'REVISIÓN',
-        observacion:   texto,
-        rol:           this.rolUsuario
-      }
-    }).subscribe({
-      next: (res) => {
-        if (res.ok) {
-          this.cargarStats();
-          this.cerrarModalObservacion();
-        } else {
-          this.empleados.update(l =>
-            l.map(e => e.legajo === emp.legajo ? { ...e, estado: anterior, observacion: emp.observacion } : e)
-          );
-          this.todosLosEmpleados = this.todosLosEmpleados.map(e =>
-            e.legajo === emp.legajo ? { ...e, estado: anterior, observacion: emp.observacion } : e
-          );
-          this.errorMsg.set(res.error || 'Error al guardar observación');
-        }
-      },
-      error: () => {
-        this.empleados.update(l =>
-          l.map(e => e.legajo === emp.legajo ? { ...e, estado: anterior, observacion: emp.observacion } : e)
-        );
-        this.todosLosEmpleados = this.todosLosEmpleados.map(e =>
-          e.legajo === emp.legajo ? { ...e, estado: anterior, observacion: emp.observacion } : e
-        );
-        this.errorMsg.set('Error de conexión');
-      }
-    });
+  confirmarAvance(): void {
+    const { empleado, destino, texto } = this.modalAvance;
+    if (!empleado || !destino) return;
+    this.ejecutarAvance(empleado, destino, texto.trim());
+    this.modalAvance = { abierto: false, empleado: null, destino: '', texto: '' };
   }
 
   // ── Limpiar ───────────────────────────────────────────────────────

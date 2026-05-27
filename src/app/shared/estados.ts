@@ -115,3 +115,46 @@ const CLASES_POR_CONTEXTO: Record<ContextoBadge, Record<TonoEstado, string>> = {
 export function estadoClass(estado: string, contexto: ContextoBadge): string {
   return CLASES_POR_CONTEXTO[contexto][colorEstado(estado)];
 }
+
+// ─── Grafo de transiciones ─────────────────────────────────────────────────
+// ⚠ DUPLICADO con backend/Código.js TRANSICIONES — si se actualiza una,
+// actualizar la otra. La validación de verdad vive en el backend; este grafo
+// está acá solo para calcular qué opciones mostrar en la UI sin round-trip.
+//
+// La transición rrhh → OBSERVADO (rebote con observación) existe en backend
+// pero NO se incluye acá todavía: el botón "devolver con observación" se
+// conecta en una fase posterior.
+
+export type Rol = 'admin' | 'rrhh';
+export type Requisito = 'link' | 'observacion' | null;
+
+export interface Transicion {
+  from: EstadoCanonico;
+  to: EstadoCanonico;
+  roles: Rol[];
+  requiere: Requisito;
+}
+
+export const TRANSICIONES: Transicion[] = [
+  // FORWARD admin — cadena secuencial
+  { from: 'PENDIENTE',            to: 'ENTREVISTADO',         roles: ['admin'], requiere: null },
+  { from: 'ENTREVISTADO',         to: 'REVISIÓN COLABORADOR', roles: ['admin'], requiere: null },
+  { from: 'REVISIÓN COLABORADOR', to: 'REVISIÓN JEFE',        roles: ['admin'], requiere: null },
+  { from: 'REVISIÓN JEFE',        to: 'PRESENTADO A RRHH',    roles: ['admin'], requiere: 'link' },
+
+  // FORWARD rrhh — sella
+  { from: 'PRESENTADO A RRHH',    to: 'SELLADO',              roles: ['rrhh'],  requiere: null },
+
+  // OBSERVADO admin — reinyección a cualquier punto del flujo
+  { from: 'OBSERVADO',            to: 'PENDIENTE',            roles: ['admin'], requiere: null },
+  { from: 'OBSERVADO',            to: 'ENTREVISTADO',         roles: ['admin'], requiere: null },
+  { from: 'OBSERVADO',            to: 'REVISIÓN COLABORADOR', roles: ['admin'], requiere: null },
+  { from: 'OBSERVADO',            to: 'REVISIÓN JEFE',        roles: ['admin'], requiere: null },
+  { from: 'OBSERVADO',            to: 'PRESENTADO A RRHH',    roles: ['admin'], requiere: 'link' },
+];
+
+export function transicionesValidas(estadoActual: string, rol: string): Transicion[] {
+  const e = (estadoActual || '').toUpperCase();
+  const r = (rol || '').toLowerCase();
+  return TRANSICIONES.filter(t => t.from === e && (t.roles as string[]).indexOf(r) >= 0);
+}
