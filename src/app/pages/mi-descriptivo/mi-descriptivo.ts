@@ -55,13 +55,19 @@ export class MiDescriptivo implements OnInit {
     });
   }
 
-  // Transforma el link del borrador en una URL embebible /preview.
+  // Transforma el link del borrador en una URL embebible.
+  // · Mobile (< 768px): /mobilebasic — Google reformatea el doc para celular
+  //   (texto fluido, sin scroll horizontal, sin layout A4 apretado).
+  // · Desktop (≥ 768px): /preview — vista completa con formato original.
   // Acepta el formato típico de Google Docs (.../document/d/<ID>/edit?...).
   // Sin DomSanitizer Angular bloquea iframes cross-origin.
   private armarDocUrl(linkBorrador: string): SafeResourceUrl | null {
     if (!linkBorrador) return null;
-    const previewUrl = linkBorrador.replace('/edit', '/preview').replace(/[?#].*$/, '');
-    return this.sanitizer.bypassSecurityTrustResourceUrl(previewUrl);
+    // Base = todo lo anterior a /edit (o /preview, o /view) sin query ni fragment.
+    const base = linkBorrador.replace(/\/(edit|preview|view|mobilebasic)\b.*$/, '').replace(/[?#].*$/, '');
+    const isMobile = typeof window !== 'undefined' && window.innerWidth < 768;
+    const url = `${base}/${isMobile ? 'mobilebasic' : 'preview'}`;
+    return this.sanitizer.bypassSecurityTrustResourceUrl(url);
   }
 
   // ── Estados de la UI ──────────────────────────────────────────────
