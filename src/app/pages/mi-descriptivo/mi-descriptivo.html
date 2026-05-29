@@ -23,14 +23,19 @@
   <!-- ═══════════════ Pantalla 1: revisión ═══════════════ -->
   <div *ngIf="!cargando() && !error() && !confirmado() && empleado()" class="md-revisar">
 
-    <!-- Header -->
+    <!-- Header propio del empleado (independiente del shell global de la app):
+         logo (izq) + nombre centrado (oculto en mobile) + Salir (der). -->
     <header class="md-header">
-      <div class="md-header-info">
-        <div class="md-nombre">{{ empleado().apellido_nombre }}</div>
-        <div class="md-meta">{{ empleado().puesto }} · {{ empleado().sedeName }}</div>
-      </div>
+      <img src="logo.jpeg" alt="Aguas Rionegrinas" class="md-logo" />
+      <div class="md-header-nombre">{{ empleado().apellido_nombre }}</div>
       <button class="md-btn-salir" (click)="salir()">Salir</button>
     </header>
+
+    <!-- Datos del empleado (siempre visibles abajo del header) -->
+    <div class="md-empleado-bar">
+      <div class="md-nombre">{{ empleado().apellido_nombre }}</div>
+      <div class="md-meta">{{ empleado().puesto }} · {{ empleado().sedeName }}</div>
+    </div>
 
     <!-- A) Tiene link borrador + estado REVISIÓN COLABORADOR -->
     <div *ngIf="puedeRevisar" class="md-content">
@@ -56,11 +61,13 @@
                   [(ngModel)]="comentario"
                   rows="4"></textarea>
 
-        <button class="md-btn-confirmar"
-                (click)="confirmar()"
-                [disabled]="confirmando()">
-          {{ confirmando() ? 'Confirmando...' : 'Estoy de acuerdo' }}
-        </button>
+        <div class="md-confirmar-footer">
+          <button class="md-btn-confirmar"
+                  (click)="confirmar()"
+                  [disabled]="confirmando()">
+            {{ confirmando() ? 'Confirmando...' : 'Estoy de acuerdo' }}
+          </button>
+        </div>
 
         <div *ngIf="error()" class="md-form-error">{{ error() }}</div>
       </div>

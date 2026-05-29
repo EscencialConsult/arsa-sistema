@@ -27,6 +27,10 @@ function empleadoGuard(): boolean {
 export const routes: Routes = [
   { path: '', redirectTo: 'login', pathMatch: 'full' },
   { path: 'login', component: LoginComponent },
+  // /mi-descriptivo va FUERA del Layout: el empleado no debe ver la sidebar
+  // de admin ni la topbar — solo su pantalla limpia. Sin esto, el iframe
+  // queda apretado a la derecha y la sidebar azul ocupa el resto.
+  { path: 'mi-descriptivo', loadComponent: () => import('./pages/mi-descriptivo/mi-descriptivo').then(m => m.MiDescriptivo), canActivate: [authGuard] },
   {
     path: '',
     component: LayoutComponent,
@@ -39,7 +43,6 @@ export const routes: Routes = [
       { path: 'procedimientos', loadComponent: () => import('./pages/procedimientos/procedimientos').then(m => m.Procedimientos), canActivate: [empleadoGuard] },
       { path: 'organigrama',    loadComponent: () => import('./pages/organigrama/organigrama').then(m => m.Organigrama), canActivate: [empleadoGuard] },
       { path: 'usuarios',       loadComponent: () => import('./pages/usuarios/usuarios').then(m => m.Usuarios), canActivate: [adminGuard] },
-      { path: 'mi-descriptivo', loadComponent: () => import('./pages/mi-descriptivo/mi-descriptivo').then(m => m.MiDescriptivo) },
     ]
   },
   { path: '**', redirectTo: 'login' }

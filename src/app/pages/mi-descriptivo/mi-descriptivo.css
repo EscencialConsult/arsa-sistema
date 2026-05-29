@@ -1,5 +1,7 @@
 /* ══════════════════════════════════════════════════════════════════
  *  /mi-descriptivo — pantalla del empleado (mobile-first)
+ *  Layout PROPIO (esta ruta vive fuera del LayoutComponent global).
+ *  Breakpoint desktop: 768px.
  * ══════════════════════════════════════════════════════════════════ */
 
 :host {
@@ -8,18 +10,21 @@
   background: #f0f4f8;
   font-family: 'Inter', system-ui, -apple-system, sans-serif;
   color: #0A2E4A;
+  overflow-x: hidden;
 }
 
+/* ── Wrap ──────────────────────────────────────────────────── */
 .md-wrap {
-  max-width: 720px;
+  max-width: 800px;
   margin: 0 auto;
-  padding: 14px;
+  padding: 0 12px;            /* mobile: padding lateral 12px */
   box-sizing: border-box;
+  overflow-x: hidden;
 }
 
 @media (min-width: 768px) {
   .md-wrap {
-    padding: 32px 24px;
+    padding: 0;
   }
 }
 
@@ -51,31 +56,89 @@
   padding: 6px 10px;
 }
 
-/* ── Header ──────────────────────────────────────────────────── */
+/* ── Header propio del empleado ──────────────────────────────── */
+/* Full-bleed: usa margin negativo lateral para escapar el padding del wrap
+   y ocupar el ancho del viewport. Fondo navy ARSA. */
 .md-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
+  margin: 0 -12px 12px;
   padding: 12px 14px;
+  background: #0A2E4A;
+  color: #fff;
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: 12px;
+}
+
+.md-logo {
+  width: 36px;
+  height: 36px;
+  object-fit: contain;
   background: #fff;
-  border-radius: 12px;
-  margin-bottom: 16px;
-  box-shadow: 0 1px 3px rgba(10, 46, 74, .06);
+  border-radius: 6px;
+  padding: 2px;
+  box-sizing: border-box;
+  flex-shrink: 0;
 }
 
-.md-header-info {
-  flex: 1;
-  min-width: 0;
-}
-
-.md-nombre {
-  font-size: 14px;
+/* Nombre centrado en el header. Oculto en mobile, visible en desktop. */
+.md-header-nombre {
+  display: none;
+  font-size: 16px;
   font-weight: 600;
-  color: #0A2E4A;
+  color: #fff;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  text-align: center;
+}
+
+.md-btn-salir {
+  background: transparent;
+  border: 1px solid rgba(255, 255, 255, .35);
+  color: #fff;
+  font-size: 13px;
+  padding: 7px 14px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-weight: 500;
+  white-space: nowrap;
+  transition: background .15s;
+}
+
+.md-btn-salir:hover {
+  background: rgba(255, 255, 255, .08);
+}
+
+@media (min-width: 768px) {
+  .md-header {
+    margin: 0 0 16px;
+    padding: 14px 24px;
+    border-radius: 0 0 12px 12px;
+  }
+  .md-logo {
+    width: 44px;
+    height: 44px;
+  }
+  .md-header-nombre {
+    display: block;
+  }
+}
+
+/* ── Sub-bar con nombre + meta del empleado (siempre visible) ── */
+.md-empleado-bar {
+  padding: 10px 14px;
+  background: #fff;
+  border-radius: 12px;
+  margin-bottom: 12px;
+  box-shadow: 0 1px 3px rgba(10, 46, 74, .06);
+}
+
+.md-nombre {
+  font-size: 15px;
+  font-weight: 600;
+  color: #0A2E4A;
+  line-height: 1.2;
 }
 
 .md-meta {
@@ -87,71 +150,92 @@
   text-overflow: ellipsis;
 }
 
-.md-btn-salir {
-  background: none;
-  border: 1px solid #cddae3;
-  color: #5E7A8F;
-  font-size: 13px;
-  padding: 7px 14px;
-  border-radius: 6px;
-  cursor: pointer;
-  font-weight: 500;
-  white-space: nowrap;
-  flex-shrink: 0;
-}
-
-.md-btn-salir:hover {
-  background: #f0f4f8;
+@media (min-width: 768px) {
+  .md-empleado-bar {
+    padding: 14px 18px;
+    margin-bottom: 16px;
+  }
+  .md-nombre {
+    font-size: 16px;
+  }
+  .md-meta {
+    font-size: 13px;
+  }
 }
 
 /* ── Pantalla 1: revisar ─────────────────────────────────────── */
 .md-titulo {
-  font-size: 20px;
+  font-size: 18px;
   font-weight: 700;
   color: #0A2E4A;
-  margin: 8px 0 4px;
+  margin: 6px 4px 4px;
 }
 
 @media (min-width: 768px) {
   .md-titulo {
     font-size: 24px;
+    margin: 8px 0 4px;
   }
 }
 
 .md-intro {
-  font-size: 14px;
+  font-size: 13px;
   color: #5E7A8F;
-  margin: 0 0 16px;
+  margin: 0 4px 12px;
   line-height: 1.5;
 }
 
+@media (min-width: 768px) {
+  .md-intro {
+    font-size: 14px;
+    margin: 0 0 16px;
+  }
+}
+
+/* ── Doc wrap + iframe ───────────────────────────────────────── */
+/* Mobile: full-bleed (escapa el padding lateral del wrap con -12px). */
 .md-doc-wrap {
+  margin: 0 -12px 12px;
   background: #fff;
-  border-radius: 12px;
   overflow: hidden;
-  margin-bottom: 16px;
+  border-radius: 0;
   box-shadow: 0 1px 3px rgba(10, 46, 74, .06);
 }
 
 .md-doc-iframe {
-  width: 100%;
-  height: 460px;
+  /* Fix iOS Safari: width:1px + min-width:100% obliga al iframe a respetar el padre. */
+  width: 1px;
+  min-width: 100%;
+  max-width: 100%;
+  height: 100%;
+  min-height: 450px;
   border: 0;
   display: block;
+  -webkit-overflow-scrolling: touch;
 }
 
 @media (min-width: 768px) {
+  .md-doc-wrap {
+    margin: 0 0 20px;
+    border-radius: 12px;
+  }
   .md-doc-iframe {
-    height: 620px;
+    min-height: 600px;
   }
 }
 
-/* ── Form ────────────────────────────────────────────────────── */
+/* ── Form (textarea + botón) ─────────────────────────────────── */
 .md-form {
   background: #fff;
   border-radius: 12px;
-  padding: 18px;
+  padding: 14px;
   box-shadow: 0 1px 3px rgba(10, 46, 74, .06);
+}
+
+@media (min-width: 768px) {
+  .md-form {
+    padding: 18px;
+  }
 }
 
 .md-label {
@@ -178,7 +262,7 @@
   font-family: inherit;
   color: #0A2E4A;
   resize: vertical;
-  min-height: 100px;
+  min-height: 90px;
   line-height: 1.5;
 }
 
@@ -188,10 +272,28 @@
   box-shadow: 0 0 0 3px rgba(75, 174, 212, .12);
 }
 
+/* ── Footer del botón (sticky en mobile) ─────────────────────── */
+.md-confirmar-footer {
+  margin-top: 14px;
+}
+
+@media (max-width: 767px) {
+  .md-confirmar-footer {
+    position: sticky;
+    bottom: 0;
+    z-index: 10;
+    /* Extender al borde del form para que el fondo blanco cubra todo el ancho. */
+    margin: 14px -14px -14px;
+    padding: 10px 14px 12px;
+    background: #fff;
+    border-top: 1px solid #e8edf0;
+    box-shadow: 0 -6px 12px rgba(255, 255, 255, .6);
+  }
+}
+
 .md-btn-confirmar {
   display: block;
   width: 100%;
-  margin-top: 18px;
   padding: 14px;
   background: #2D7D5A;
   color: #fff;
@@ -225,7 +327,7 @@
 /* ── Pantalla 2: gracias ─────────────────────────────────────── */
 .md-gracias {
   text-align: center;
-  padding: 60px 24px;
+  padding: 48px 20px;
   background: #fff;
   border-radius: 12px;
   box-shadow: 0 1px 3px rgba(10, 46, 74, .06);
@@ -242,19 +344,28 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 80px;
-  height: 80px;
+  width: 72px;
+  height: 72px;
   border-radius: 50%;
   background: #e8f5ee;
   color: #2D7D5A;
-  font-size: 44px;
+  font-size: 40px;
   line-height: 1;
-  margin: 0 auto 24px;
+  margin: 0 auto 22px;
   border: 2px solid #86c9a8;
 }
 
+@media (min-width: 768px) {
+  .md-gracias-icon {
+    width: 80px;
+    height: 80px;
+    font-size: 44px;
+    margin-bottom: 24px;
+  }
+}
+
 .md-gracias-title {
-  font-size: 22px;
+  font-size: 20px;
   font-weight: 700;
   color: #0A2E4A;
   margin: 0 0 14px;
@@ -268,11 +379,18 @@
 }
 
 .md-gracias-text {
-  font-size: 15px;
+  font-size: 14px;
   color: #5E7A8F;
   line-height: 1.6;
   max-width: 440px;
-  margin: 0 auto 32px;
+  margin: 0 auto 28px;
+}
+
+@media (min-width: 768px) {
+  .md-gracias-text {
+    font-size: 15px;
+    margin-bottom: 32px;
+  }
 }
 
 .md-btn-secondary {
@@ -294,30 +412,49 @@
 /* ── Mensajes (no listo / fuera de revisión) ─────────────────── */
 .md-mensaje {
   text-align: center;
-  padding: 48px 24px;
+  padding: 40px 20px;
   background: #fff;
   border-radius: 12px;
   box-shadow: 0 1px 3px rgba(10, 46, 74, .06);
 }
 
+@media (min-width: 768px) {
+  .md-mensaje {
+    padding: 48px 24px;
+  }
+}
+
 .md-msg-icon {
-  font-size: 44px;
+  font-size: 40px;
   line-height: 1;
-  margin-bottom: 18px;
+  margin-bottom: 16px;
 }
 
 .md-msg-title {
-  font-size: 18px;
+  font-size: 17px;
   font-weight: 600;
   color: #0A2E4A;
-  margin: 0 0 12px;
+  margin: 0 0 10px;
   line-height: 1.3;
 }
 
+@media (min-width: 768px) {
+  .md-msg-title {
+    font-size: 18px;
+    margin-bottom: 12px;
+  }
+}
+
 .md-msg-text {
-  font-size: 14px;
+  font-size: 13px;
   color: #5E7A8F;
   line-height: 1.5;
   max-width: 380px;
   margin: 0 auto;
+}
+
+@media (min-width: 768px) {
+  .md-msg-text {
+    font-size: 14px;
+  }
 }
