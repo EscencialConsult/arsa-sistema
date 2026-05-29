@@ -15,6 +15,7 @@ import { ApiService } from '../../services/api';
 export class LoginComponent {
   usuario = '';
   password = '';
+  mostrarPassword = false;
   error = '';
   cargando = false;
 

@@ -235,8 +235,42 @@ body { font-family: var(--font-body); background: var(--bl); color: var(--dk); f
   transition: background .15s; margin-top: 8px;
   display: flex; align-items: center; justify-content: center; gap: 8px;
 }
-.ls-submit:hover { background: #0A2E4A; }
+.ls-submit:hover:not(:disabled) { background: #0A2E4A; }
+.ls-submit:disabled { background: #6B8299; cursor: not-allowed; opacity: .8; }
 .ls-submit svg { width: 16px; height: 16px; }
+
+/* ── Password con toggle de visibilidad ───────────────────── */
+.ls-pwd-wrap { position: relative; }
+.ls-input--pwd { padding-right: 42px; }
+.ls-pwd-toggle {
+  position: absolute; top: 50%; right: 6px; transform: translateY(-50%);
+  width: 32px; height: 32px;
+  display: flex; align-items: center; justify-content: center;
+  background: none; border: none; cursor: pointer;
+  color: #6B8299; border-radius: 6px;
+  transition: background .15s, color .15s;
+}
+.ls-pwd-toggle:hover { background: rgba(75,174,212,.08); color: #1A5F8A; }
+.ls-pwd-toggle svg { width: 18px; height: 18px; }
+
+/* ── Slider indeterminado de carga ───────────────────────── */
+.ls-loading {
+  margin-top: 14px;
+  height: 3px;
+  background: rgba(75,174,212,.15);
+  border-radius: 2px;
+  overflow: hidden;
+}
+.ls-loading-bar {
+  height: 100%; width: 30%;
+  background: linear-gradient(90deg, transparent, #4BAED4, transparent);
+  border-radius: 2px;
+  animation: ls-load-slide 1.2s ease-in-out infinite;
+}
+@keyframes ls-load-slide {
+  0%   { transform: translateX(-120%); }
+  100% { transform: translateX(420%); }
+}
 
 .ls-roles { margin-top: 24px; }
 .ls-roles-sep {
