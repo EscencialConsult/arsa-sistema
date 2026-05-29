@@ -1,7 +1,22 @@
 <div class="md-wrap">
 
-  <!-- Cargando -->
-  <div *ngIf="cargando()" class="md-loading">Cargando tu descriptivo...</div>
+  <!-- Header navy: visible siempre (carga, gracias, revisión). Solo se oculta
+       en error fatal de carga, donde no hay contexto del empleado. -->
+  <header class="md-header" *ngIf="!error() || empleado()">
+    <img src="logo.jpeg" alt="Aguas Rionegrinas" class="md-logo" />
+    <div class="md-header-nombre">{{ empleado()?.apellido_nombre }}</div>
+    <button class="md-btn-salir" (click)="pedirSalir()">Salir</button>
+  </header>
+
+  <!-- Cargando: pantalla con ícono + título + sub + barra animada -->
+  <div *ngIf="cargando()" class="md-loading-screen">
+    <i class="ti ti-file-text md-loading-icon"></i>
+    <h2 class="md-loading-title">Tu descriptivo de puesto</h2>
+    <p class="md-loading-sub">Preparando tu documento...</p>
+    <div class="md-loading-bar">
+      <div class="md-loading-bar-fill"></div>
+    </div>
+  </div>
 
   <!-- Error global (carga fallida) -->
   <div *ngIf="!cargando() && error() && !empleado()" class="md-error">
@@ -22,14 +37,6 @@
 
   <!-- ═══════════════ Pantalla 1: revisión ═══════════════ -->
   <div *ngIf="!cargando() && !error() && !confirmado() && empleado()" class="md-revisar">
-
-    <!-- Header propio del empleado (independiente del shell global de la app):
-         logo (izq) + nombre centrado (oculto en mobile) + Salir (der). -->
-    <header class="md-header">
-      <img src="logo.jpeg" alt="Aguas Rionegrinas" class="md-logo" />
-      <div class="md-header-nombre">{{ empleado().apellido_nombre }}</div>
-      <button class="md-btn-salir" (click)="pedirSalir()">Salir</button>
-    </header>
 
     <!-- Datos del empleado (siempre visibles abajo del header) -->
     <div class="md-empleado-bar">
