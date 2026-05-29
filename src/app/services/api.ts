@@ -32,6 +32,15 @@ export class ApiService {
     return this.http.get(this.url, { params });
   }
 
+  // Datos del descriptivo para la pantalla /mi-descriptivo del empleado.
+  // No incluye campos privados (transcripción/eneagrama/observación interna ni link definitivo).
+  getMiDescriptivo(legajo: string): Observable<any> {
+    const params = new HttpParams()
+      .set('action', 'getMiDescriptivo')
+      .set('legajo', legajo);
+    return this.http.get(this.url, { params });
+  }
+
   stats(): Observable<any> {
     const params = new HttpParams().set('action', 'stats');
     return this.http.get(this.url, { params });
