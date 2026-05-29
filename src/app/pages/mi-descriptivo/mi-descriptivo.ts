@@ -1,9 +1,16 @@
-import { Component, OnInit, signal } from '@angular/core';
+import { Component, OnInit, signal, computed } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
 import { DomSanitizer, SafeResourceUrl } from '@angular/platform-browser';
 import { ApiService } from '../../services/api';
+
+// Vista de la pantalla según el estado del descriptivo + acción del empleado.
+//   A = REVISIÓN COLABORADOR sin confirmar todavía → puede revisar y comentar.
+//   B = ya confirmó en esta sesión → mensaje + comentario guardado.
+//   C = otro estado del flujo → "siendo revisado por el equipo".
+//   D = SELLADO con link definitivo → versión final.
+type EstadoVista = 'A' | 'B' | 'C' | 'D' | null;
 
 @Component({
   selector: 'app-mi-descriptivo',
@@ -14,14 +21,17 @@ import { ApiService } from '../../services/api';
 })
 export class MiDescriptivo implements OnInit {
 
-  cargando    = signal(true);
-  empleado    = signal<any>(null);
-  error       = signal('');
-  confirmando = signal(false);
-  confirmado  = signal(false);
-  modalSalir  = signal(false);
-  docUrl: SafeResourceUrl | null = null;
-  comentario  = '';
+  cargando     = signal(true);
+  empleado     = signal<any>(null);
+  error        = signal('');
+  confirmando  = signal(false);
+  modalSalir   = signal(false);
+  modalGracias = signal(false);
+  yaConfirmo   = signal(false);              // memoria solamente — se pierde al recargar
+  observacionGuardada = '';                  // texto que mandó el empleado al confirmar
+  docUrlBorrador:   SafeResourceUrl | null = null;
+  docUrlDefinitivo: SafeResourceUrl | null = null;
+  comentario   = '';
 
   constructor(
     private api: ApiService,
@@ -43,7 +53,8 @@ export class MiDescriptivo implements OnInit {
         this.cargando.set(false);
         if (res.ok) {
           this.empleado.set(res.data);
-          this.docUrl = this.armarDocUrl(res.data.linkBorrador);
+          this.docUrlBorrador   = this.armarDocUrl(res.data.linkBorrador);
+          this.docUrlDefinitivo = this.armarDocUrl(res.data.linkDefinitivo);
         } else {
           this.error.set(res.error || 'No pudimos cargar tu descriptivo.');
         }
@@ -55,54 +66,60 @@ export class MiDescriptivo implements OnInit {
     });
   }
 
-  // Transforma el link del borrador en una URL embebible.
-  // · Mobile (< 768px): /mobilebasic — Google reformatea el doc para celular
-  //   (texto fluido, sin scroll horizontal, sin layout A4 apretado).
+  // Transforma el link de Google Doc en una URL embebible.
+  // · Mobile (< 768px): /mobilebasic — texto fluido, sin layout A4 apretado.
   // · Desktop (≥ 768px): /preview — vista completa con formato original.
-  // Acepta el formato típico de Google Docs (.../document/d/<ID>/edit?...).
-  // Sin DomSanitizer Angular bloquea iframes cross-origin.
-  private armarDocUrl(linkBorrador: string): SafeResourceUrl | null {
-    if (!linkBorrador) return null;
-    // Base = todo lo anterior a /edit (o /preview, o /view) sin query ni fragment.
-    const base = linkBorrador.replace(/\/(edit|preview|view|mobilebasic)\b.*$/, '').replace(/[?#].*$/, '');
+  private armarDocUrl(link: string): SafeResourceUrl | null {
+    if (!link) return null;
+    const base = link.replace(/\/(edit|preview|view|mobilebasic)\b.*$/, '').replace(/[?#].*$/, '');
     const isMobile = typeof window !== 'undefined' && window.innerWidth < 768;
     const url = `${base}/${isMobile ? 'mobilebasic' : 'preview'}`;
     return this.sanitizer.bypassSecurityTrustResourceUrl(url);
   }
 
-  // ── Estados de la UI ──────────────────────────────────────────────
-  get puedeRevisar(): boolean {
-    const e = this.empleado();
-    return !!e && e.estado === 'REVISIÓN COLABORADOR' && !!e.linkBorrador;
+  // Extrae el primer nombre de "APELLIDO, Nombre Apellido2".
+  get nombreCorto(): string {
+    const full = this.empleado()?.apellido_nombre || '';
+    const trozo = full.includes(',') ? full.split(',')[1] : full;
+    return (trozo || '').trim().split(' ')[0] || '';
   }
 
-  get descriptivoNoListo(): boolean {
+  // ── Estado de la vista (A / B / C / D) ────────────────────────────
+  // Orden de precedencia: D > B > C > A.
+  estadoVista = computed<EstadoVista>(() => {
     const e = this.empleado();
-    return !!e && e.estado === 'REVISIÓN COLABORADOR' && !e.linkBorrador;
-  }
-
-  get fueraDeRevisar(): boolean {
-    const e = this.empleado();
-    return !!e && e.estado !== 'REVISIÓN COLABORADOR';
-  }
+    if (!e) return null;
+    // D: sellado con link definitivo → versión final
+    if (e.estado === 'SELLADO' && e.linkDefinitivo) return 'D';
+    // B: ya confirmó en esta sesión (prevalece sobre C, sino el estado cambia a REV JEFE y veríamos "siendo revisado")
+    if (this.yaConfirmo()) return 'B';
+    // A: en revisión colaborador (con o sin link — el HTML decide si muestra "no listo")
+    if (e.estado === 'REVISIÓN COLABORADOR') return 'A';
+    // C: cualquier otro estado del flujo
+    return 'C';
+  });
 
   // ── Acciones ──────────────────────────────────────────────────────
   confirmar(): void {
     const e = this.empleado();
     if (!e || this.confirmando()) return;
     this.confirmando.set(true);
+    const comentarioActual = this.comentario.trim();
+
     this.api.post({
       action: 'confirmarDescriptivo',
       data: {
         legajo:      e.legajo,
-        observacion: this.comentario.trim(),
+        observacion: comentarioActual,
         rol:         'empleado'
       }
     }).subscribe({
       next: (res) => {
         this.confirmando.set(false);
         if (res.ok) {
-          this.confirmado.set(true);
+          this.observacionGuardada = comentarioActual;
+          this.yaConfirmo.set(true);
+          this.modalGracias.set(true);
         } else {
           this.error.set(res.error || 'No pudimos confirmar tu descriptivo.');
         }
@@ -113,6 +130,8 @@ export class MiDescriptivo implements OnInit {
       }
     });
   }
+
+  cerrarModalGracias(): void { this.modalGracias.set(false); }
 
   pedirSalir():    void { this.modalSalir.set(true); }
   cancelarSalir(): void { this.modalSalir.set(false); }

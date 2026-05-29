@@ -1,31 +1,135 @@
 /* ══════════════════════════════════════════════════════════════════
- *  /mi-descriptivo — pantalla del empleado (mobile-first)
+ *  /mi-descriptivo — pantalla del empleado (rediseño cálido)
  *  Layout PROPIO (esta ruta vive fuera del LayoutComponent global).
+ *  Tipografía Poppins — solo en este componente.
  *  Breakpoint desktop: 768px.
  * ══════════════════════════════════════════════════════════════════ */
+
+@import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600&display=swap');
 
 :host {
   display: block;
   min-height: 100vh;
-  background: #f0f4f8;
-  font-family: 'Inter', system-ui, -apple-system, sans-serif;
-  color: #0A2E4A;
+  background: #f5f7fa;
+  color: #1A2E4A;
   overflow-x: hidden;
+}
+
+/* Poppins solo dentro de este componente (no global) */
+.md-wrap,
+.md-wrap * {
+  font-family: 'Poppins', system-ui, -apple-system, sans-serif;
 }
 
 /* ── Wrap ──────────────────────────────────────────────────── */
 .md-wrap {
   max-width: 800px;
   margin: 0 auto;
-  padding: 0 12px;            /* mobile: padding lateral 12px */
+  padding: 0 12px;
+  /* Padding inferior para que el footer sticky no tape contenido */
+  padding-bottom: 88px;
   box-sizing: border-box;
   overflow-x: hidden;
 }
 
 @media (min-width: 768px) {
   .md-wrap {
-    padding: 0;
+    padding: 0 0 88px;
   }
+}
+
+/* ── Header (gradient navy) ──────────────────────────────────── */
+.md-header {
+  margin: 0 -12px 14px;
+  padding: 12px 16px;
+  background: linear-gradient(135deg, #0A2E4A 0%, #1A5F8A 100%);
+  color: #fff;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.md-logo {
+  width: 38px;
+  height: 38px;
+  object-fit: contain;
+  background: #fff;
+  border-radius: 8px;
+  padding: 3px;
+  box-sizing: border-box;
+  flex-shrink: 0;
+}
+
+.md-header-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.md-greeting {
+  font-size: 12px;
+  font-weight: 600;
+  color: #fff;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  line-height: 1.2;
+}
+
+.md-greeting-sub {
+  font-size: 10px;
+  color: rgba(255, 255, 255, 0.6);
+  margin-top: 1px;
+}
+
+/* Salir píldora: compacto, transparente translúcido */
+.md-btn-salir {
+  background: rgba(255, 255, 255, 0.15);
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  color: #fff;
+  font-size: 12px;
+  font-weight: 500;
+  padding: 6px 16px;
+  border-radius: 20px;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background .15s;
+}
+
+.md-btn-salir:hover {
+  background: rgba(255, 255, 255, 0.25);
+}
+
+@media (min-width: 768px) {
+  .md-header {
+    margin: 0 0 16px;
+    border-radius: 0 0 12px 12px;
+    padding: 14px 22px;
+  }
+}
+
+/* ── Card del empleado (cream + borde naranja) ──────────────── */
+.md-empleado-bar {
+  background: #FFF8F0;
+  border-radius: 10px;
+  border-left: 3px solid #E8834A;
+  padding: 10px 14px;
+  margin-bottom: 14px;
+}
+
+.md-nombre {
+  font-size: 13px;
+  font-weight: 600;
+  color: #1A2E4A;
+  line-height: 1.3;
+}
+
+.md-meta {
+  font-size: 11px;
+  color: #666;
+  margin-top: 1px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 /* ── Loading screen ──────────────────────────────────────────── */
@@ -35,9 +139,7 @@
   align-items: center;
   justify-content: center;
   text-align: center;
-  /* Restar la altura aproximada del header navy para centrar respecto
-     al área visible debajo. min-height en vez de height para tolerar contenido más alto. */
-  min-height: calc(100vh - 100px);
+  min-height: calc(100vh - 180px);
   padding: 40px 24px;
   box-sizing: border-box;
 }
@@ -52,13 +154,13 @@
 .md-loading-title {
   font-size: 16px;
   font-weight: 500;
-  color: #0A2E4A;
+  color: #1A2E4A;
   margin: 0 0 6px;
 }
 
 .md-loading-sub {
   font-size: 13px;
-  color: #7A9AAF;
+  color: #888;
   margin: 0 0 22px;
 }
 
@@ -103,156 +205,45 @@
   cursor: pointer;
   font-size: 14px;
   padding: 6px 10px;
+  font-family: inherit;
 }
 
-/* ── Header propio del empleado ──────────────────────────────── */
-/* Full-bleed: usa margin negativo lateral para escapar el padding del wrap
-   y ocupar el ancho del viewport. Fondo navy ARSA. */
-.md-header {
-  margin: 0 -12px 12px;
-  padding: 12px 14px;
-  background: #0A2E4A;
-  color: #fff;
-  display: grid;
-  grid-template-columns: auto 1fr auto;
-  align-items: center;
-  gap: 12px;
-}
-
-.md-logo {
-  width: 36px;
-  height: 36px;
-  object-fit: contain;
-  background: #fff;
-  border-radius: 6px;
-  padding: 2px;
-  box-sizing: border-box;
-  flex-shrink: 0;
-}
-
-/* Nombre centrado en el header. Oculto en mobile, visible en desktop. */
-.md-header-nombre {
-  display: none;
-  font-size: 16px;
-  font-weight: 600;
-  color: #fff;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  text-align: center;
-}
-
-.md-btn-salir {
-  background: transparent;
-  border: 1px solid rgba(255, 255, 255, .35);
-  color: #fff;
-  font-size: 13px;
-  padding: 7px 14px;
-  border-radius: 6px;
-  cursor: pointer;
-  font-weight: 500;
-  white-space: nowrap;
-  transition: background .15s;
-}
-
-.md-btn-salir:hover {
-  background: rgba(255, 255, 255, .08);
-}
-
-@media (min-width: 768px) {
-  .md-header {
-    margin: 0 0 16px;
-    padding: 14px 24px;
-    border-radius: 0 0 12px 12px;
-  }
-  .md-logo {
-    width: 44px;
-    height: 44px;
-  }
-  .md-header-nombre {
-    display: block;
-  }
-}
-
-/* ── Sub-bar con nombre + meta del empleado (siempre visible) ── */
-.md-empleado-bar {
-  padding: 10px 14px;
-  background: #fff;
-  border-radius: 12px;
-  margin-bottom: 12px;
-  box-shadow: 0 1px 3px rgba(10, 46, 74, .06);
-}
-
-.md-nombre {
-  font-size: 15px;
-  font-weight: 600;
-  color: #0A2E4A;
-  line-height: 1.2;
-}
-
-.md-meta {
-  font-size: 12px;
-  color: #5E7A8F;
-  margin-top: 2px;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-@media (min-width: 768px) {
-  .md-empleado-bar {
-    padding: 14px 18px;
-    margin-bottom: 16px;
-  }
-  .md-nombre {
-    font-size: 16px;
-  }
-  .md-meta {
-    font-size: 13px;
-  }
-}
-
-/* ── Pantalla 1: revisar ─────────────────────────────────────── */
+/* ── Pantalla 1: revisar (título + intro) ────────────────────── */
 .md-titulo {
-  font-size: 18px;
-  font-weight: 700;
-  color: #0A2E4A;
-  margin: 6px 4px 4px;
+  font-size: 17px;
+  font-weight: 600;
+  color: #1A2E4A;
+  margin: 8px 4px 6px;
+}
+
+.md-intro {
+  font-size: 12px;
+  color: #888;
+  line-height: 1.5;
+  margin: 0 4px 14px;
 }
 
 @media (min-width: 768px) {
   .md-titulo {
-    font-size: 24px;
-    margin: 8px 0 4px;
+    font-size: 19px;
+    margin: 8px 0 6px;
   }
-}
-
-.md-intro {
-  font-size: 13px;
-  color: #5E7A8F;
-  margin: 0 4px 12px;
-  line-height: 1.5;
-}
-
-@media (min-width: 768px) {
   .md-intro {
-    font-size: 14px;
+    font-size: 13px;
     margin: 0 0 16px;
   }
 }
 
 /* ── Doc wrap + iframe ───────────────────────────────────────── */
-/* Mobile: full-bleed (escapa el padding lateral del wrap con -12px). */
 .md-doc-wrap {
-  margin: 0 -12px 12px;
-  background: #fff;
+  background: #F8FBFF;
+  border: 0.5px solid #C8DFF0;
+  border-radius: 8px;
   overflow: hidden;
-  border-radius: 0;
-  box-shadow: 0 1px 3px rgba(10, 46, 74, .06);
+  margin-bottom: 14px;
 }
 
 .md-doc-iframe {
-  /* Fix iOS Safari: width:1px + min-width:100% obliga al iframe a respetar el padre. */
   width: 1px;
   min-width: 100%;
   max-width: 100%;
@@ -264,103 +255,53 @@
 }
 
 @media (min-width: 768px) {
-  .md-doc-wrap {
-    margin: 0 0 20px;
-    border-radius: 12px;
-  }
   .md-doc-iframe {
     min-height: 600px;
   }
 }
 
-/* ── Form (textarea + botón) ─────────────────────────────────── */
+/* ── Form (textarea) ─────────────────────────────────────────── */
 .md-form {
-  background: #fff;
-  border-radius: 12px;
-  padding: 14px;
-  box-shadow: 0 1px 3px rgba(10, 46, 74, .06);
-}
-
-@media (min-width: 768px) {
-  .md-form {
-    padding: 18px;
-  }
+  margin-bottom: 14px;
 }
 
 .md-label {
   display: block;
-  font-size: 13px;
-  font-weight: 600;
-  color: #1A5F8A;
+  font-size: 12px;
+  font-weight: 500;
+  color: #1A2E4A;
   margin-bottom: 8px;
 }
 
 .md-label-hint {
   font-weight: 400;
-  color: #7A9AAF;
-  font-size: 12px;
+  color: #888;
+  font-size: 11px;
 }
 
 .md-textarea {
   width: 100%;
   box-sizing: border-box;
   padding: 12px;
-  border: 1px solid #cddae3;
+  border: 1px solid #C8DFF0;
   border-radius: 8px;
-  font-size: 14px;
-  font-family: inherit;
-  color: #0A2E4A;
+  font-size: 13px;
+  font-family: 'Poppins', sans-serif;
+  color: #1A2E4A;
   resize: vertical;
   min-height: 90px;
   line-height: 1.5;
+  background: #fff;
 }
 
 .md-textarea:focus {
   outline: none;
   border-color: #4BAED4;
-  box-shadow: 0 0 0 3px rgba(75, 174, 212, .12);
+  box-shadow: 0 0 0 3px rgba(75, 174, 212, 0.1);
 }
 
-/* ── Footer del botón (sticky en mobile) ─────────────────────── */
-.md-confirmar-footer {
-  margin-top: 14px;
-}
-
-@media (max-width: 767px) {
-  .md-confirmar-footer {
-    position: sticky;
-    bottom: 0;
-    z-index: 10;
-    /* Extender al borde del form para que el fondo blanco cubra todo el ancho. */
-    margin: 14px -14px -14px;
-    padding: 10px 14px 12px;
-    background: #fff;
-    border-top: 1px solid #e8edf0;
-    box-shadow: 0 -6px 12px rgba(255, 255, 255, .6);
-  }
-}
-
-.md-btn-confirmar {
-  display: block;
-  width: 100%;
-  padding: 14px;
-  background: #2D7D5A;
-  color: #fff;
-  border: none;
-  border-radius: 8px;
-  font-size: 15px;
-  font-weight: 600;
-  cursor: pointer;
-  transition: background .15s;
-}
-
-.md-btn-confirmar:hover:not(:disabled) {
-  background: #246a4b;
-}
-
-.md-btn-confirmar:disabled {
-  background: #c5d1d8;
-  cursor: not-allowed;
+.md-textarea::placeholder {
+  color: #aab5c2;
 }
 
 .md-form-error {
@@ -373,19 +314,76 @@
   font-size: 13px;
 }
 
+/* ── Footer sticky ───────────────────────────────────────────── */
+/* Sticky al bottom del viewport mientras hay scroll. Layout horizontal:
+   texto explicativo izquierda + botón verde derecha. */
+.md-confirmar-footer {
+  position: sticky;
+  bottom: 0;
+  z-index: 10;
+  margin: 0 -12px;
+  padding: 12px 16px;
+  background: #fff;
+  border-top: 1px solid #EEF2F6;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.md-footer-text {
+  flex: 1;
+  font-size: 10px;
+  color: #999;
+  line-height: 1.4;
+}
+
+.md-btn-confirmar {
+  background: #2D7D5A;
+  color: #fff;
+  border: none;
+  border-radius: 8px;
+  padding: 11px 18px;
+  font-size: 13px;
+  font-weight: 600;
+  font-family: inherit;
+  cursor: pointer;
+  white-space: nowrap;
+  flex-shrink: 0;
+  transition: background .15s;
+}
+
+.md-btn-confirmar:hover:not(:disabled) {
+  background: #246a4b;
+}
+
+.md-btn-confirmar:disabled {
+  background: #c5d1d8;
+  cursor: not-allowed;
+}
+
+@media (min-width: 768px) {
+  .md-confirmar-footer {
+    margin: 0;
+    border-radius: 12px 12px 0 0;
+    padding: 14px 20px;
+  }
+  .md-footer-text {
+    font-size: 11px;
+  }
+}
+
 /* ── Pantalla 2: gracias ─────────────────────────────────────── */
 .md-gracias {
   text-align: center;
   padding: 48px 20px;
   background: #fff;
   border-radius: 12px;
-  box-shadow: 0 1px 3px rgba(10, 46, 74, .06);
   margin-top: 16px;
 }
 
 @media (min-width: 768px) {
   .md-gracias {
-    padding: 80px 32px;
+    padding: 72px 32px;
   }
 }
 
@@ -404,32 +402,23 @@
   border: 2px solid #86c9a8;
 }
 
-@media (min-width: 768px) {
-  .md-gracias-icon {
-    width: 80px;
-    height: 80px;
-    font-size: 44px;
-    margin-bottom: 24px;
-  }
-}
-
 .md-gracias-title {
   font-size: 20px;
-  font-weight: 700;
-  color: #0A2E4A;
+  font-weight: 600;
+  color: #1A2E4A;
   margin: 0 0 14px;
   line-height: 1.3;
 }
 
 @media (min-width: 768px) {
   .md-gracias-title {
-    font-size: 26px;
+    font-size: 24px;
   }
 }
 
 .md-gracias-text {
-  font-size: 14px;
-  color: #5E7A8F;
+  font-size: 13px;
+  color: #888;
   line-height: 1.6;
   max-width: 440px;
   margin: 0 auto 28px;
@@ -437,8 +426,7 @@
 
 @media (min-width: 768px) {
   .md-gracias-text {
-    font-size: 15px;
-    margin-bottom: 32px;
+    font-size: 14px;
   }
 }
 
@@ -448,8 +436,9 @@
   color: #1A5F8A;
   padding: 10px 24px;
   border-radius: 8px;
-  font-size: 14px;
+  font-size: 13px;
   font-weight: 500;
+  font-family: inherit;
   cursor: pointer;
   transition: background .15s;
 }
@@ -464,7 +453,6 @@
   padding: 40px 20px;
   background: #fff;
   border-radius: 12px;
-  box-shadow: 0 1px 3px rgba(10, 46, 74, .06);
 }
 
 @media (min-width: 768px) {
@@ -482,28 +470,131 @@
 .md-msg-title {
   font-size: 17px;
   font-weight: 600;
-  color: #0A2E4A;
+  color: #1A2E4A;
   margin: 0 0 10px;
   line-height: 1.3;
 }
 
-@media (min-width: 768px) {
-  .md-msg-title {
-    font-size: 18px;
-    margin-bottom: 12px;
-  }
-}
-
 .md-msg-text {
   font-size: 13px;
-  color: #5E7A8F;
+  color: #888;
   line-height: 1.5;
   max-width: 380px;
   margin: 0 auto;
 }
 
-@media (min-width: 768px) {
-  .md-msg-text {
-    font-size: 14px;
-  }
+/* Variante "estado C": mensaje pleno (sin botón ni nada más debajo). */
+.md-mensaje--solo {
+  padding: 60px 24px;
+}
+
+/* ── Tag "— versión final" en el título del estado D ─────────── */
+.md-titulo-tag {
+  font-weight: 400;
+  color: #2D7D5A;
+  font-size: 0.85em;
+}
+
+/* ── Card de comentario guardado (estado B) ──────────────────── */
+.md-comentario-card {
+  background: #FFF8F0;
+  border: 1px solid #F0C8A0;
+  border-radius: 10px;
+  padding: 14px 16px;
+  margin-top: 14px;
+}
+
+.md-comentario-label {
+  font-size: 11px;
+  font-weight: 600;
+  color: #E8834A;
+  margin-bottom: 6px;
+  letter-spacing: .02em;
+  text-transform: uppercase;
+}
+
+.md-comentario-text {
+  font-size: 13px;
+  color: #5a4a3a;
+  font-style: italic;
+  line-height: 1.5;
+  white-space: pre-wrap;
+}
+
+/* ── Modal de gracias (después de confirmar) ─────────────────── */
+.md-modal-overlay {
+  position: fixed; inset: 0;
+  background: rgba(10, 46, 74, 0.55);
+  display: flex; align-items: center; justify-content: center;
+  z-index: 1000;
+  padding: 20px;
+  box-sizing: border-box;
+  animation: md-modal-fade .15s ease-out;
+}
+
+@keyframes md-modal-fade {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+.md-modal-gracias {
+  background: #fff;
+  border-radius: 14px;
+  padding: 36px 28px;
+  max-width: 400px;
+  width: 100%;
+  text-align: center;
+  box-shadow: 0 20px 60px rgba(10, 46, 74, 0.25);
+  animation: md-modal-pop .18s ease-out;
+}
+
+@keyframes md-modal-pop {
+  from { transform: scale(.94); opacity: 0; }
+  to   { transform: scale(1); opacity: 1; }
+}
+
+.md-modal-gracias-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 64px;
+  height: 64px;
+  border-radius: 50%;
+  background: #e8f5ee;
+  color: #2D7D5A;
+  font-size: 36px;
+  line-height: 1;
+  margin: 0 auto 18px;
+  border: 2px solid #86c9a8;
+}
+
+.md-modal-gracias-title {
+  font-size: 18px;
+  font-weight: 600;
+  color: #1A2E4A;
+  margin: 0 0 12px;
+}
+
+.md-modal-gracias-text {
+  font-size: 13px;
+  color: #888;
+  line-height: 1.6;
+  margin: 0 0 24px;
+}
+
+.md-modal-gracias-btn {
+  background: #2D7D5A;
+  color: #fff;
+  border: none;
+  border-radius: 8px;
+  padding: 11px 28px;
+  font-size: 13px;
+  font-weight: 600;
+  font-family: inherit;
+  cursor: pointer;
+  transition: background .15s;
+}
+
+.md-modal-gracias-btn:hover {
+  background: #246a4b;
 }

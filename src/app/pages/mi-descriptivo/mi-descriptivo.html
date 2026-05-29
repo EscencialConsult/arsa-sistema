@@ -1,14 +1,16 @@
 <div class="md-wrap">
 
-  <!-- Header navy: visible siempre (carga, gracias, revisión). Solo se oculta
-       en error fatal de carga, donde no hay contexto del empleado. -->
+  <!-- Header gradient navy: visible siempre (salvo error fatal sin empleado) -->
   <header class="md-header" *ngIf="!error() || empleado()">
     <img src="logo.jpeg" alt="Aguas Rionegrinas" class="md-logo" />
-    <div class="md-header-nombre">{{ empleado()?.apellido_nombre }}</div>
+    <div class="md-header-info">
+      <div class="md-greeting">Hola, {{ nombreCorto || '...' }}</div>
+      <div class="md-greeting-sub">Aguas Rionegrinas</div>
+    </div>
     <button class="md-btn-salir" (click)="pedirSalir()">Salir</button>
   </header>
 
-  <!-- Cargando: pantalla con ícono + título + sub + barra animada -->
+  <!-- Cargando -->
   <div *ngIf="cargando()" class="md-loading-screen">
     <i class="ti ti-file-text md-loading-icon"></i>
     <h2 class="md-loading-title">Tu descriptivo de puesto</h2>
@@ -24,76 +26,112 @@
     <button class="md-btn-link" (click)="salir()">Volver al login</button>
   </div>
 
-  <!-- ═══════════════ Pantalla 2: gracias ═══════════════ -->
-  <div *ngIf="!cargando() && confirmado()" class="md-gracias">
-    <div class="md-gracias-icon">✓</div>
-    <h2 class="md-gracias-title">¡Gracias por revisar tu descriptivo!</h2>
-    <p class="md-gracias-text">
-      Si dejaste comentarios, el equipo los va a ver.
-      Cuando esté la versión final te avisamos.
-    </p>
-    <button class="md-btn-secondary" (click)="salir()">Cerrar sesión</button>
-  </div>
+  <!-- ═══════════════ Cuerpo principal (estados A / B / C / D) ═══════════════ -->
+  <div *ngIf="!cargando() && empleado()" class="md-revisar">
 
-  <!-- ═══════════════ Pantalla 1: revisión ═══════════════ -->
-  <div *ngIf="!cargando() && !error() && !confirmado() && empleado()" class="md-revisar">
-
-    <!-- Datos del empleado (siempre visibles abajo del header) -->
+    <!-- Card del empleado (siempre arriba) -->
     <div class="md-empleado-bar">
       <div class="md-nombre">{{ empleado().apellido_nombre }}</div>
       <div class="md-meta">{{ empleado().puesto }} · {{ empleado().sedeName }}</div>
     </div>
 
-    <!-- A) Tiene link borrador + estado REVISIÓN COLABORADOR -->
-    <div *ngIf="puedeRevisar" class="md-content">
+    <!-- ── Estado D: SELLADO con link definitivo → versión final ── -->
+    <div *ngIf="estadoVista() === 'D'" class="md-content">
+      <h1 class="md-titulo">Tu descriptivo de puesto <span class="md-titulo-tag">— versión final</span></h1>
+      <p class="md-intro">Esta es la versión oficial de tu descriptivo.</p>
+      <div class="md-doc-wrap">
+        <iframe [src]="docUrlDefinitivo"
+                class="md-doc-iframe"
+                title="Descriptivo de puesto — versión final"
+                allowfullscreen></iframe>
+      </div>
+    </div>
+
+    <!-- ── Estado A: REVISIÓN COLABORADOR sin confirmar ── -->
+    <div *ngIf="estadoVista() === 'A'" class="md-content">
+      <ng-container *ngIf="empleado()?.linkBorrador; else sinLinkBorrador">
+        <h1 class="md-titulo">Tu descriptivo de puesto</h1>
+        <p class="md-intro">
+          Revisalo con calma, dejá un comentario si algo no refleja bien lo que hacés,
+          y confirmá cuando estés listo.
+        </p>
+        <div class="md-doc-wrap">
+          <iframe [src]="docUrlBorrador"
+                  class="md-doc-iframe"
+                  title="Descriptivo de puesto"
+                  allowfullscreen></iframe>
+        </div>
+        <div class="md-form">
+          <label for="md-comentario" class="md-label">
+            ¿Algo que ajustar? <span class="md-label-hint">(opcional)</span>
+          </label>
+          <textarea id="md-comentario"
+                    class="md-textarea"
+                    placeholder="Escribí acá si algo no está bien o querés agregar algo..."
+                    [(ngModel)]="comentario"
+                    rows="4"></textarea>
+          <div *ngIf="error()" class="md-form-error">{{ error() }}</div>
+        </div>
+      </ng-container>
+      <ng-template #sinLinkBorrador>
+        <div class="md-mensaje">
+          <div class="md-msg-icon">⏳</div>
+          <h2 class="md-msg-title">Tu descriptivo todavía no está listo</h2>
+          <p class="md-msg-text">Te avisamos cuando puedas revisarlo.</p>
+        </div>
+      </ng-template>
+    </div>
+
+    <!-- ── Estado B: ya confirmó en esta sesión ── -->
+    <div *ngIf="estadoVista() === 'B'" class="md-content">
       <h1 class="md-titulo">Tu descriptivo de puesto</h1>
       <p class="md-intro">
-        Revisalo, dejá comentarios si querés, y confirmá cuando estés listo.
+        Ya confirmaste tu respuesta. Sigue el proceso con el equipo — cuando esté la versión final te avisamos.
       </p>
-
-      <div class="md-doc-wrap">
-        <iframe [src]="docUrl"
+      <div *ngIf="docUrlBorrador" class="md-doc-wrap">
+        <iframe [src]="docUrlBorrador"
                 class="md-doc-iframe"
                 title="Descriptivo de puesto"
                 allowfullscreen></iframe>
       </div>
-
-      <div class="md-form">
-        <label for="md-comentario" class="md-label">
-          Comentarios <span class="md-label-hint">(opcional)</span>
-        </label>
-        <textarea id="md-comentario"
-                  class="md-textarea"
-                  placeholder="Aclaraciones, ajustes que sugerís, lo que quieras..."
-                  [(ngModel)]="comentario"
-                  rows="4"></textarea>
-
-        <div class="md-confirmar-footer">
-          <button class="md-btn-confirmar"
-                  (click)="confirmar()"
-                  [disabled]="confirmando()">
-            {{ confirmando() ? 'Confirmando...' : 'Estoy de acuerdo' }}
-          </button>
-        </div>
-
-        <div *ngIf="error()" class="md-form-error">{{ error() }}</div>
+      <div *ngIf="observacionGuardada" class="md-comentario-card">
+        <div class="md-comentario-label">Tu comentario guardado</div>
+        <div class="md-comentario-text">"{{ observacionGuardada }}"</div>
       </div>
     </div>
 
-    <!-- B) Estado correcto pero sin link → descriptivo todavía no listo -->
-    <div *ngIf="descriptivoNoListo" class="md-mensaje">
-      <div class="md-msg-icon">⏳</div>
-      <h2 class="md-msg-title">Tu descriptivo todavía no está listo</h2>
-      <p class="md-msg-text">Te avisamos cuando puedas revisarlo.</p>
-    </div>
-
-    <!-- C) Estado fuera de REVISIÓN COLABORADOR -->
-    <div *ngIf="fueraDeRevisar" class="md-mensaje">
+    <!-- ── Estado C: cualquier otro estado del flujo ── -->
+    <div *ngIf="estadoVista() === 'C'" class="md-mensaje md-mensaje--solo">
       <div class="md-msg-icon">📋</div>
       <h2 class="md-msg-title">Tu descriptivo está siendo revisado por el equipo</h2>
       <p class="md-msg-text">Te avisamos cuando haya novedades.</p>
     </div>
 
+  </div>
+
+  <!-- Footer sticky: solo en Estado A con link borrador (donde puede confirmar) -->
+  <div *ngIf="estadoVista() === 'A' && empleado()?.linkBorrador" class="md-confirmar-footer">
+    <div class="md-footer-text">
+      Al confirmar, el equipo recibe tu respuesta y sigue el proceso.
+    </div>
+    <button class="md-btn-confirmar"
+            (click)="confirmar()"
+            [disabled]="confirmando()">
+      {{ confirmando() ? 'Confirmando...' : 'Estoy de acuerdo ✓' }}
+    </button>
+  </div>
+
+</div>
+
+<!-- Modal gracias (aparece al confirmar OK) -->
+<div class="md-modal-overlay" *ngIf="modalGracias()" (click)="cerrarModalGracias()">
+  <div class="md-modal-gracias" (click)="$event.stopPropagation()">
+    <div class="md-modal-gracias-icon">✓</div>
+    <h2 class="md-modal-gracias-title">¡Gracias por revisar!</h2>
+    <p class="md-modal-gracias-text">
+      Tu respuesta fue registrada. El equipo la va a revisar y te avisamos cuando haya novedades.
+    </p>
+    <button class="md-modal-gracias-btn" (click)="cerrarModalGracias()">Cerrar</button>
   </div>
 </div>
 

@@ -482,6 +482,7 @@ function getMiDescriptivo(legajo) {
           sedeName:        SEDES[sedeCode] || sedeNom,
           puesto:          familia || FAMILIAS[famCode] || famCode,
           linkBorrador:    str(f[COL.LINK_BORRAD]),
+          linkDefinitivo:  str(f[COL.LINK_DEFIN]),
           estado:          normalizarEstado(f[COL.ESTADO])
         }
       };
