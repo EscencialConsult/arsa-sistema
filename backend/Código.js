@@ -452,6 +452,94 @@ function habilitarColaborador(legajo, password, telefono) {
 
 
 // ══════════════════════════════════════════════════════════════════
+//  ACCESO DEL EMPLEADO — /mi-descriptivo
+// ══════════════════════════════════════════════════════════════════
+
+// Devuelve los datos del descriptivo del empleado para mostrarle SU PROPIA
+// pantalla. NO incluye campos privados (transcripción, eneagrama, observación
+// interna ni link definitivo). El borrador es lo que el empleado revisa.
+function getMiDescriptivo(legajo) {
+  if (!legajo) return { ok: false, error: 'Falta legajo' };
+  const hoja  = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(HOJA);
+  const datos = hoja.getDataRange().getValues();
+  for (let i = FILA_INICIO - 1; i < datos.length; i++) {
+    if (str(datos[i][COL.LEGAJO]) === str(legajo)) {
+      const f = datos[i];
+      const codigo   = str(f[COL.CODIGO]);
+      const codComp  = str(f[COL.COD_COMPLETO]);
+      const apellido = str(f[COL.APELLIDO]);
+      const nombre   = str(f[COL.NOMBRE]);
+      const sedeNom  = str(f[COL.SEDE]);
+      const familia  = str(f[COL.FAMILIA]);
+      const famCode  = codigo.split('-')[0].toUpperCase();
+      const partes   = codComp.split('|');
+      const sedeCode = partes.length > 1 ? partes[1].trim().toUpperCase() : '';
+      return {
+        ok: true,
+        data: {
+          legajo:          str(legajo),
+          apellido_nombre: (apellido + ', ' + nombre).trim(),
+          sedeName:        SEDES[sedeCode] || sedeNom,
+          puesto:          familia || FAMILIAS[famCode] || famCode,
+          linkBorrador:    str(f[COL.LINK_BORRAD]),
+          estado:          normalizarEstado(f[COL.ESTADO])
+        }
+      };
+    }
+  }
+  return { ok: false, error: 'Legajo no encontrado: ' + legajo };
+}
+
+// El empleado confirma su descriptivo desde /mi-descriptivo.
+//  · Valida que rol == 'empleado' (defensa básica).
+//  · Valida que el estado actual sea REVISIÓN COLABORADOR.
+//  · Guarda observación en COL.OBS_COLAB (puede venir vacía).
+//  · Sella la fecha de confirmación en COL.FECHA_COLAB.
+//  · Avanza el estado a REVISIÓN JEFE.
+function confirmarDescriptivo(data) {
+  if (!data)         return { ok: false, error: 'Falta data' };
+  const legajo      = data.legajo;
+  const observacion = str(data.observacion);
+  const rol         = String(data.rol || '').toLowerCase();
+  if (!legajo)        return { ok: false, error: 'Falta legajo' };
+  if (rol !== 'empleado') {
+    return { ok: false, error: 'Acción reservada para el empleado' };
+  }
+
+  const hoja  = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(HOJA);
+  const datos = hoja.getDataRange().getValues();
+  let rowIndex = -1;
+  for (let i = FILA_INICIO - 1; i < datos.length; i++) {
+    if (str(datos[i][COL.LEGAJO]) === str(legajo)) { rowIndex = i; break; }
+  }
+  if (rowIndex < 0) return { ok: false, error: 'Legajo no encontrado: ' + legajo };
+
+  const estadoActual = normalizarEstado(datos[rowIndex][COL.ESTADO]);
+  if (estadoActual !== 'REVISIÓN COLABORADOR') {
+    return {
+      ok: false,
+      error: 'No podés confirmar ahora. Estado actual: ' + estadoActual
+    };
+  }
+
+  // Escribir observación, fecha, y avanzar estado.
+  if (observacion) {
+    hoja.getRange(rowIndex + 1, COL.OBS_COLAB + 1).setValue(observacion);
+  }
+  hoja.getRange(rowIndex + 1, COL.FECHA_COLAB + 1).setValue(new Date());
+  hoja.getRange(rowIndex + 1, COL.ESTADO + 1).setValue('REVISIÓN JEFE');
+
+  return {
+    ok: true,
+    legajo: str(legajo),
+    estadoAnterior: estadoActual,
+    estado: 'REVISIÓN JEFE',
+    observacionGuardada: !!observacion
+  };
+}
+
+
+// ══════════════════════════════════════════════════════════════════
 //  LINKS / preview
 // ══════════════════════════════════════════════════════════════════
 
@@ -572,6 +660,7 @@ function doGet(e) {
     else if (accion === 'sedes')             res = { ok: true, data: SEDES };
     else if (accion === 'login')             res = login(p.usuario, p.password);
     else if (accion === 'loginEmpleado')     res = loginEmpleado(p.legajo, p.password);
+    else if (accion === 'getMiDescriptivo')  res = getMiDescriptivo(p.legajo);
     else if (accion === 'read')              res = (p.tab === 'Nomina')
                                                ? getNomina({ all: 'true' }, rol)
                                                : { ok: true, data: getRows(p.tab) };
@@ -775,6 +864,7 @@ function doPost(e) {
       case 'createProcedimiento': res = createProcedimiento(body.data); break;
       case 'createUsuario':       res = createRow(TAB_USUARIOS, body.data, 'usuario'); break;
       case 'habilitarColaborador': res = habilitarColaborador(body.data && body.data.legajo, body.data && body.data.password, body.data && body.data.telefono); break;
+      case 'confirmarDescriptivo': res = confirmarDescriptivo(body.data); break;
       default: res = { ok: false, error: 'Acción no reconocida' };
     }
     return json(res);
