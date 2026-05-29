@@ -28,7 +28,7 @@
     <header class="md-header">
       <img src="logo.jpeg" alt="Aguas Rionegrinas" class="md-logo" />
       <div class="md-header-nombre">{{ empleado().apellido_nombre }}</div>
-      <button class="md-btn-salir" (click)="salir()">Salir</button>
+      <button class="md-btn-salir" (click)="pedirSalir()">Salir</button>
     </header>
 
     <!-- Datos del empleado (siempre visibles abajo del header) -->
@@ -87,5 +87,20 @@
       <p class="md-msg-text">Te avisamos cuando haya novedades.</p>
     </div>
 
+  </div>
+</div>
+
+<!-- Modal confirmar salida -->
+<div class="confirm-modal-overlay" *ngIf="modalSalir()" (click)="cancelarSalir()">
+  <div class="confirm-modal" (click)="$event.stopPropagation()">
+    <div class="confirm-modal-icon">⏻</div>
+    <h3 class="confirm-modal-title">¿Cerrar sesión?</h3>
+    <p class="confirm-modal-text">
+      Vas a salir del sistema. Para volver a entrar vas a tener que usar tu legajo y contraseña.
+    </p>
+    <div class="confirm-modal-actions">
+      <button class="confirm-modal-btn-cancel" (click)="cancelarSalir()">Cancelar</button>
+      <button class="confirm-modal-btn-confirm" (click)="salir()">Sí, salir</button>
+    </div>
   </div>
 </div>

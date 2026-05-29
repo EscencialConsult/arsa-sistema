@@ -17,6 +17,7 @@ export class LayoutComponent implements OnInit {
   rutaActual = '';
   notifVisible = false;
   notifMsg = '';
+  modalSalir = false;
 
   menuAdmin = [
     {
@@ -134,7 +135,11 @@ export class LayoutComponent implements OnInit {
     this.router.navigate([item.ruta]);
   }
 
+  pedirSalir()   { this.modalSalir = true; }
+  cancelarSalir() { this.modalSalir = false; }
+
   salir() {
+    this.modalSalir = false;
     localStorage.clear();
     this.router.navigate(['/login']);
   }

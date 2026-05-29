@@ -11,7 +11,7 @@
     <div class="tb-right">
       <span class="tb-user">{{ usuario?.nombre }}</span>
       <div class="tb-avatar">{{ usuario?.nombre?.charAt(0) }}</div>
-      <button class="tb-exit" (click)="salir()">Salir</button>
+      <button class="tb-exit" (click)="pedirSalir()">Salir</button>
     </div>
   </nav>
 
@@ -83,3 +83,18 @@
 </div>
 
 <div class="notif" [class.show]="notifVisible">{{ notifMsg }}</div>
+
+<!-- Modal confirmar salida -->
+<div class="confirm-modal-overlay" *ngIf="modalSalir" (click)="cancelarSalir()">
+  <div class="confirm-modal" (click)="$event.stopPropagation()">
+    <div class="confirm-modal-icon">⏻</div>
+    <h3 class="confirm-modal-title">¿Cerrar sesión?</h3>
+    <p class="confirm-modal-text">
+      Vas a salir del sistema. Para volver a entrar vas a tener que usar tu usuario y contraseña.
+    </p>
+    <div class="confirm-modal-actions">
+      <button class="confirm-modal-btn-cancel" (click)="cancelarSalir()">Cancelar</button>
+      <button class="confirm-modal-btn-confirm" (click)="salir()">Sí, salir</button>
+    </div>
+  </div>
+</div>

@@ -19,6 +19,7 @@ export class MiDescriptivo implements OnInit {
   error       = signal('');
   confirmando = signal(false);
   confirmado  = signal(false);
+  modalSalir  = signal(false);
   docUrl: SafeResourceUrl | null = null;
   comentario  = '';
 
@@ -107,7 +108,11 @@ export class MiDescriptivo implements OnInit {
     });
   }
 
+  pedirSalir():    void { this.modalSalir.set(true); }
+  cancelarSalir(): void { this.modalSalir.set(false); }
+
   salir(): void {
+    this.modalSalir.set(false);
     localStorage.clear();
     this.router.navigate(['/login']);
   }
