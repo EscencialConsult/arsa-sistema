@@ -1,4 +1,4 @@
-<div class="md-wrap">
+<div class="md-wrap" [class.md-wrap--tutorial-blur]="mostrarTutorial()">
 
   <!-- Header gradient navy: visible siempre (salvo error fatal sin empleado) -->
   <header class="md-header" *ngIf="!error() || empleado()">
@@ -55,7 +55,9 @@
           Revisalo con calma, dejá un comentario si algo no refleja bien lo que hacés,
           y confirmá cuando estés listo.
         </p>
-        <div class="md-doc-wrap">
+        <div class="md-doc-wrap"
+             [class.tutorial-highlight-doc]="mostrarTutorial() && pasoTutorial() === 1"
+             #iframeRef>
           <iframe [src]="docUrlBorrador"
                   class="md-doc-iframe"
                   title="Descriptivo de puesto"
@@ -67,6 +69,8 @@
           </label>
           <textarea id="md-comentario"
                     class="md-textarea"
+                    [class.tutorial-highlight-comment]="mostrarTutorial() && pasoTutorial() === 2"
+                    #textareaRef
                     placeholder="Escribí acá si algo no está bien o querés agregar algo..."
                     [(ngModel)]="comentario"
                     rows="4"></textarea>
@@ -115,6 +119,8 @@
       Al confirmar, el equipo recibe tu respuesta y sigue el proceso.
     </div>
     <button class="md-btn-confirmar"
+            [class.tutorial-highlight-btn]="mostrarTutorial() && pasoTutorial() === 3"
+            #botonRef
             (click)="confirmar()"
             [disabled]="confirmando()">
       {{ confirmando() ? 'Confirmando...' : 'Estoy de acuerdo ✓' }}
@@ -133,6 +139,76 @@
     </p>
     <button class="md-modal-gracias-btn" (click)="cerrarModalGracias()">Cerrar</button>
   </div>
+</div>
+
+<!-- ═══════════════ Tutorial primera vez (3 pasos) ═══════════════
+     Sibling de .md-wrap → no se difumina por el filter del wrap. -->
+<div *ngIf="mostrarTutorial()" class="tutorial-overlay">
+
+  <!-- Paso 1: leer el documento (con label de gesto + dedo animado) -->
+  <ng-container *ngIf="pasoTutorial() === 1">
+
+    <!-- Label "Deslizá acá para leer ↓" arriba del iframe -->
+    <div class="tutorial-iframe-label">
+      Deslizá acá para leer
+      <span class="tutorial-iframe-label-arrow">↓</span>
+    </div>
+
+    <!-- Gesto animado: círculo (dedo) que se desliza de arriba abajo + estela -->
+    <div class="tutorial-finger-anim" aria-hidden="true">
+      <div class="tutorial-finger-trail"></div>
+      <div class="tutorial-finger-dot"></div>
+    </div>
+
+    <!-- Tooltip con instrucciones (abajo, no tapa el iframe) -->
+    <div class="tutorial-tooltip tutorial-tooltip--step1">
+      <div class="tutorial-icon tutorial-icon--hand">👆</div>
+      <h3 class="tutorial-title">1 de 3 — Leé tu descriptivo</h3>
+      <p class="tutorial-text">Deslizá el dedo de arriba hacia abajo dentro del recuadro azul para leer todo el documento.</p>
+      <div class="tutorial-footer">
+        <div class="tutorial-progress">
+          <div class="tutorial-progress-step tutorial-progress-step--active-blue"></div>
+          <div class="tutorial-progress-step"></div>
+          <div class="tutorial-progress-step"></div>
+        </div>
+        <button class="tutorial-btn" (click)="siguientePasoTutorial()">Siguiente →</button>
+      </div>
+    </div>
+
+  </ng-container>
+
+  <!-- Paso 2: el comentario -->
+  <div *ngIf="pasoTutorial() === 2" class="tutorial-tooltip tutorial-tooltip--step2">
+    <div class="tutorial-icon">✏️</div>
+    <h3 class="tutorial-title">2 de 3 — Tu comentario</h3>
+    <p class="tutorial-text">Si algo no refleja bien tu trabajo, escribílo acá. Es opcional.</p>
+    <div class="tutorial-footer">
+      <div class="tutorial-progress">
+        <div class="tutorial-progress-step tutorial-progress-step--active-blue"></div>
+        <div class="tutorial-progress-step tutorial-progress-step--active-blue"></div>
+        <div class="tutorial-progress-step"></div>
+      </div>
+      <button class="tutorial-btn" (click)="siguientePasoTutorial()">Siguiente →</button>
+    </div>
+    <div class="tutorial-arrow tutorial-arrow--down-green"></div>
+  </div>
+
+  <!-- Paso 3: confirmar -->
+  <div *ngIf="pasoTutorial() === 3" class="tutorial-tooltip tutorial-tooltip--step3">
+    <div class="tutorial-icon tutorial-icon--green">✓</div>
+    <h3 class="tutorial-title">3 de 3 — Confirmá</h3>
+    <p class="tutorial-text">Tocá el botón verde cuando estés listo para enviar tu respuesta.</p>
+    <div class="tutorial-footer">
+      <div class="tutorial-progress">
+        <div class="tutorial-progress-step tutorial-progress-step--active-blue"></div>
+        <div class="tutorial-progress-step tutorial-progress-step--active-blue"></div>
+        <div class="tutorial-progress-step tutorial-progress-step--active-green"></div>
+      </div>
+      <button class="tutorial-btn tutorial-btn--green" (click)="siguientePasoTutorial()">¡Entendido!</button>
+    </div>
+    <div class="tutorial-arrow tutorial-arrow--down-green"></div>
+  </div>
+
 </div>
 
 <!-- Modal confirmar salida -->

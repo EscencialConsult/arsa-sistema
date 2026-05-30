@@ -598,3 +598,275 @@
 .md-modal-gracias-btn:hover {
   background: #246a4b;
 }
+
+/* ════════════════════════════════════════════════════════════
+ *  Tutorial primera vez (3 pasos secuenciales)
+ *  · El wrap se difumina cuando el tutorial está activo
+ *  · El overlay + tooltips viven OUTSIDE el wrap → no se difuminan
+ *  · Highlights pulsantes en los elementos target (dentro del wrap,
+ *    se difuminan levemente pero el pulse sigue visible)
+ * ════════════════════════════════════════════════════════════ */
+
+.md-wrap--tutorial-blur {
+  filter: blur(2px);
+  pointer-events: none;
+  user-select: none;
+}
+
+.tutorial-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(10, 46, 74, 0.6);
+  z-index: 2000;
+  font-family: 'Poppins', sans-serif;
+}
+
+/* Tooltip base — posicionado por paso */
+.tutorial-tooltip {
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+  width: calc(100% - 32px);
+  max-width: 360px;
+  background: #fff;
+  border-radius: 12px;
+  box-shadow: 0 4px 24px rgba(10, 46, 74, 0.15);
+  padding: 16px;
+  z-index: 2001;
+  animation: tutorial-pop .2s ease-out;
+}
+
+@keyframes tutorial-pop {
+  from { transform: translateX(-50%) scale(.94); opacity: 0; }
+  to   { transform: translateX(-50%) scale(1);   opacity: 1; }
+}
+
+.tutorial-tooltip--step1 { bottom: 90px; }
+.tutorial-tooltip--step2 { top: 50%; transform: translate(-50%, -50%); }
+.tutorial-tooltip--step3 { bottom: 110px; }
+
+.tutorial-tooltip--step2 {
+  animation: tutorial-pop-centered .2s ease-out;
+}
+
+@keyframes tutorial-pop-centered {
+  from { transform: translate(-50%, -50%) scale(.94); opacity: 0; }
+  to   { transform: translate(-50%, -50%) scale(1);   opacity: 1; }
+}
+
+/* Ícono */
+.tutorial-icon {
+  font-size: 28px;
+  line-height: 1;
+  display: block;
+  margin-bottom: 10px;
+}
+
+.tutorial-icon--hand {
+  animation: tutorial-hand 1.4s ease-in-out infinite;
+}
+
+@keyframes tutorial-hand {
+  0%, 100% { transform: translateY(0); }
+  50%      { transform: translateY(-6px); }
+}
+
+.tutorial-icon--green {
+  color: #2D7D5A;
+  font-weight: bold;
+}
+
+/* Texto */
+.tutorial-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: #1A2E4A;
+  margin: 0 0 6px;
+}
+
+.tutorial-text {
+  font-size: 12px;
+  color: #666;
+  line-height: 1.5;
+  margin: 0 0 14px;
+}
+
+/* Footer: progreso + botón */
+.tutorial-footer {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.tutorial-progress {
+  display: flex;
+  gap: 4px;
+  flex: 1;
+}
+
+.tutorial-progress-step {
+  flex: 1;
+  height: 3px;
+  background: #D0DCE8;
+  border-radius: 2px;
+  transition: background .2s;
+}
+
+.tutorial-progress-step--active-blue  { background: #1A5F8A; }
+.tutorial-progress-step--active-green { background: #2D7D5A; }
+
+.tutorial-btn {
+  background: #1A5F8A;
+  color: #fff;
+  border: none;
+  border-radius: 7px;
+  padding: 8px 16px;
+  font-size: 12px;
+  font-weight: 600;
+  font-family: inherit;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background .15s;
+}
+
+.tutorial-btn:hover { background: #0A2E4A; }
+
+.tutorial-btn--green { background: #2D7D5A; }
+.tutorial-btn--green:hover { background: #246a4b; }
+
+/* Flecha apuntando al elemento (en el borde inferior del tooltip) */
+.tutorial-arrow {
+  position: absolute;
+  bottom: -10px;
+  left: 50%;
+  width: 0;
+  height: 0;
+  border-left: 10px solid transparent;
+  border-right: 10px solid transparent;
+  border-top: 10px solid #fff;
+  animation: tutorial-bounce 1.2s ease-in-out infinite;
+}
+
+@keyframes tutorial-bounce {
+  0%, 100% { transform: translateX(-50%) translateY(0); }
+  50%      { transform: translateX(-50%) translateY(4px); }
+}
+
+/* Highlights pulsantes en los elementos target.
+   Están dentro del wrap blureado → el pulse se ve un poco difuminado,
+   pero el contraste de color sigue siendo claro. */
+.tutorial-highlight-doc {
+  outline: 2px solid #1A5F8A !important;
+  outline-offset: 2px;
+  animation: tutorial-pulse-blue 1.5s ease-in-out infinite;
+}
+
+@keyframes tutorial-pulse-blue {
+  0%, 100% { box-shadow: 0 0 0 3px rgba(26, 95, 138, 0.4); }
+  50%      { box-shadow: 0 0 0 12px rgba(26, 95, 138, 0.15); }
+}
+
+/* ── Paso 1: label + animación del dedo ─────────────────────── */
+
+/* Label "Deslizá acá para leer ↓" arriba del iframe — fondo blanco para
+   contrastar contra el overlay oscuro. */
+.tutorial-iframe-label {
+  position: fixed;
+  top: 18vh;
+  left: 50%;
+  transform: translateX(-50%);
+  background: #fff;
+  color: #1A5F8A;
+  font-size: 11px;
+  font-weight: 600;
+  padding: 6px 14px;
+  border-radius: 16px;
+  box-shadow: 0 2px 8px rgba(10, 46, 74, 0.15);
+  z-index: 2001;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  white-space: nowrap;
+}
+
+.tutorial-iframe-label-arrow {
+  font-size: 14px;
+  line-height: 1;
+  display: inline-block;
+  animation: tutorial-arrow-bounce 1.2s ease-in-out infinite;
+}
+
+@keyframes tutorial-arrow-bounce {
+  0%, 100% { transform: translateY(0); }
+  50%      { transform: translateY(3px); }
+}
+
+/* Dedo animado: círculo semitransparente que se desliza de arriba a abajo
+   sobre el área del iframe, simulando el gesto de scroll. */
+.tutorial-finger-anim {
+  position: fixed;
+  top: 30vh;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 40px;
+  height: 180px;
+  z-index: 2001;
+  pointer-events: none;
+}
+
+.tutorial-finger-trail {
+  position: absolute;
+  left: 50%;
+  top: 18px;
+  width: 2px;
+  height: 144px;
+  background: linear-gradient(to bottom, rgba(255, 255, 255, 0.7), rgba(255, 255, 255, 0));
+  border-radius: 1px;
+  transform: translateX(-50%);
+  animation: tutorial-trail-pulse 1.8s ease-in-out infinite;
+}
+
+.tutorial-finger-dot {
+  position: absolute;
+  left: 50%;
+  top: 0;
+  width: 32px;
+  height: 32px;
+  margin-left: -16px;
+  background: rgba(255, 255, 255, 0.85);
+  border-radius: 50%;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+  animation: tutorial-finger-slide 1.8s ease-in-out infinite;
+}
+
+@keyframes tutorial-finger-slide {
+  0%   { top: 0;     opacity: 0; }
+  10%  { top: 0;     opacity: 1; }
+  90%  { top: 148px; opacity: 1; }
+  100% { top: 148px; opacity: 0; }
+}
+
+@keyframes tutorial-trail-pulse {
+  0%, 10%, 100% { opacity: 0; }
+  40%, 80%      { opacity: 1; }
+}
+
+.tutorial-highlight-comment {
+  border-color: #2D7D5A !important;
+  border-width: 2px !important;
+  animation: tutorial-pulse-green 1.5s ease-in-out infinite;
+}
+
+@keyframes tutorial-pulse-green {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(45, 125, 90, 0.5); }
+  50%      { box-shadow: 0 0 0 8px rgba(45, 125, 90, 0.1); }
+}
+
+.tutorial-highlight-btn {
+  animation: tutorial-pulse-btn 1.5s ease-in-out infinite;
+}
+
+@keyframes tutorial-pulse-btn {
+  0%, 100% { box-shadow: 0 0 0 3px #2D7D5A, 0 0 0 6px rgba(45, 125, 90, 0.4); }
+  50%      { box-shadow: 0 0 0 3px #2D7D5A, 0 0 0 12px rgba(45, 125, 90, 0.15); }
+}

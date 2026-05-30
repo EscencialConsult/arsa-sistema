@@ -1,4 +1,4 @@
-import { Component, OnInit, signal, computed } from '@angular/core';
+import { Component, OnInit, signal, computed, ElementRef, ViewChild } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
@@ -33,6 +33,18 @@ export class MiDescriptivo implements OnInit {
   docUrlDefinitivo: SafeResourceUrl | null = null;
   comentario   = '';
 
+  // ── Tutorial primera vez ──────────────────────────────────────────
+  // Se muestra solo en Estado A y solo si nunca se vio (localStorage).
+  // 3 pasos secuenciales: leer doc → comentar → confirmar.
+  // localStorage.clear() en salir() borra el flag → vuelve a aparecer en próxima sesión.
+  private readonly TUTORIAL_KEY = 'arsa_tutorial_visto';
+  mostrarTutorial = signal(false);
+  pasoTutorial    = signal(1);
+
+  @ViewChild('iframeRef')   iframeRef?:   ElementRef;
+  @ViewChild('textareaRef') textareaRef?: ElementRef;
+  @ViewChild('botonRef')    botonRef?:    ElementRef;
+
   constructor(
     private api: ApiService,
     private router: Router,
@@ -55,6 +67,7 @@ export class MiDescriptivo implements OnInit {
           this.empleado.set(res.data);
           this.docUrlBorrador   = this.armarDocUrl(res.data.linkBorrador);
           this.docUrlDefinitivo = this.armarDocUrl(res.data.linkDefinitivo);
+          this.chequearTutorial();
         } else {
           this.error.set(res.error || 'No pudimos cargar tu descriptivo.');
         }
@@ -64,6 +77,35 @@ export class MiDescriptivo implements OnInit {
         this.error.set('Error de conexión. Intentá de nuevo en unos minutos.');
       }
     });
+  }
+
+  private chequearTutorial(): void {
+    if (this.estadoVista() !== 'A') return;
+    if (!this.empleado()?.linkBorrador) return;
+    if (localStorage.getItem(this.TUTORIAL_KEY)) return;
+    this.mostrarTutorial.set(true);
+    this.pasoTutorial.set(1);
+  }
+
+  siguientePasoTutorial(): void {
+    if (this.pasoTutorial() < 3) {
+      this.pasoTutorial.update(p => p + 1);
+      setTimeout(() => this.scrollAlPasoTutorial(), 80);
+    } else {
+      this.cerrarTutorial();
+    }
+  }
+
+  private scrollAlPasoTutorial(): void {
+    const ref = this.pasoTutorial() === 2 ? this.textareaRef
+              : this.pasoTutorial() === 3 ? this.botonRef
+              : this.iframeRef;
+    ref?.nativeElement?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  }
+
+  cerrarTutorial(): void {
+    localStorage.setItem(this.TUTORIAL_KEY, 'true');
+    this.mostrarTutorial.set(false);
   }
 
   // Transforma el link de Google Doc en una URL embebible.
