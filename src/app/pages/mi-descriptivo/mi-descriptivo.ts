@@ -5,11 +5,11 @@ import { Router } from '@angular/router';
 import { DomSanitizer, SafeResourceUrl } from '@angular/platform-browser';
 import { ApiService } from '../../services/api';
 
-// Vista de la pantalla según el estado del descriptivo + acción del empleado.
-//   A = REVISIÓN COLABORADOR sin confirmar todavía → puede revisar y comentar.
-//   B = ya confirmó en esta sesión → mensaje + comentario guardado.
-//   C = otro estado del flujo → "siendo revisado por el equipo".
-//   D = SELLADO con link definitivo → versión final.
+// Vista de la pantalla según los datos del backend (single source of truth).
+//   D = linkDefinitivo presente → versión final del descriptivo.
+//   B = fechaColaborador set (ya confirmó) y no hay definitivo → esperando.
+//   A = REVISIÓN COLABORADOR + linkBorrador + sin confirmar → revisar y comentar.
+//   C = cualquier otro caso (sin link, estado previo, etc.) → todavía no listo.
 type EstadoVista = 'A' | 'B' | 'C' | 'D' | null;
 
 @Component({
@@ -27,8 +27,6 @@ export class MiDescriptivo implements OnInit {
   confirmando  = signal(false);
   modalSalir   = signal(false);
   modalGracias = signal(false);
-  yaConfirmo   = signal(false);              // persiste en localStorage por legajo → sobrevive a reload
-  observacionGuardada = '';                  // texto que mandó el empleado al confirmar (también persistido)
   docUrlBorrador:   SafeResourceUrl | null = null;
   docUrlDefinitivo: SafeResourceUrl | null = null;
   comentario   = '';
@@ -67,7 +65,6 @@ export class MiDescriptivo implements OnInit {
           this.empleado.set(res.data);
           this.docUrlBorrador   = this.armarDocUrl(res.data.linkBorrador);
           this.docUrlDefinitivo = this.armarDocUrl(res.data.linkDefinitivo);
-          this.restaurarConfirmacion(legajo);   // antes del tutorial: si ya confirmó, no lo mostramos
           this.chequearTutorial();
         } else {
           this.error.set(res.error || 'No pudimos cargar tu descriptivo.');
@@ -80,15 +77,21 @@ export class MiDescriptivo implements OnInit {
     });
   }
 
-  // Si el empleado ya confirmó en una sesión previa (mismo navegador),
-  // restauramos el estado para que vuelva a ver el Estado B en lugar del C.
-  // Las claves se borran con localStorage.clear() en salir() — al loguearse de
-  // nuevo desde cero (otro dispositivo / otra sesión) vuelve a Estado C natural.
-  private restaurarConfirmacion(legajo: string): void {
-    if (localStorage.getItem(`arsa_ya_confirmo_${legajo}`) === 'true') {
-      this.yaConfirmo.set(true);
-      this.observacionGuardada = localStorage.getItem(`arsa_observacion_${legajo}`) || '';
-    }
+  // Releé el descriptivo del backend (lo llamamos después de confirmar para que
+  // fechaColaborador y observacionColaborador vengan ya seteados, y estadoVista()
+  // pase a B sin trucos en frontend).
+  private recargarEmpleado(): void {
+    const legajo = this.empleado()?.legajo;
+    if (!legajo) return;
+    this.api.getMiDescriptivo(legajo).subscribe({
+      next: (res) => {
+        if (res.ok) {
+          this.empleado.set(res.data);
+          this.docUrlBorrador   = this.armarDocUrl(res.data.linkBorrador);
+          this.docUrlDefinitivo = this.armarDocUrl(res.data.linkDefinitivo);
+        }
+      }
+    });
   }
 
   private chequearTutorial(): void {
@@ -139,17 +142,17 @@ export class MiDescriptivo implements OnInit {
   }
 
   // ── Estado de la vista (A / B / C / D) ────────────────────────────
-  // Orden de precedencia: D > B > C > A.
+  // Source of truth: lo que devuelve el backend. Sin caché frontend.
   estadoVista = computed<EstadoVista>(() => {
     const e = this.empleado();
     if (!e) return null;
-    // D: sellado con link definitivo → versión final
-    if (e.estado === 'SELLADO' && e.linkDefinitivo) return 'D';
-    // B: ya confirmó en esta sesión (prevalece sobre C, sino el estado cambia a REV JEFE y veríamos "siendo revisado")
-    if (this.yaConfirmo()) return 'B';
-    // A: en revisión colaborador (con o sin link — el HTML decide si muestra "no listo")
-    if (e.estado === 'REVISIÓN COLABORADOR') return 'A';
-    // C: cualquier otro estado del flujo
+    // D: hay versión final (sin importar el estado del flujo).
+    if (e.linkDefinitivo) return 'D';
+    // B: el colaborador ya confirmó (fecha set) y no hay definitivo todavía.
+    if (e.fechaColaborador) return 'B';
+    // A: en revisión colaborador, con borrador, sin confirmar.
+    if (e.estado === 'REVISIÓN COLABORADOR' && e.linkBorrador) return 'A';
+    // C: cualquier otro caso (PENDIENTE, ENTREVISTADO, REV JEFE sin confirmar, sin borrador, etc.)
     return 'C';
   });
 
@@ -171,12 +174,17 @@ export class MiDescriptivo implements OnInit {
       next: (res) => {
         this.confirmando.set(false);
         if (res.ok) {
-          this.observacionGuardada = comentarioActual;
-          this.yaConfirmo.set(true);
+          // Reflejo optimista: seteo fechaColaborador localmente para que
+          // estadoVista() pase a B de inmediato (mientras el modal está abierto).
+          this.empleado.update(curr => curr ? {
+            ...curr,
+            fechaColaborador:       new Date().toISOString().slice(0, 10),
+            observacionColaborador: comentarioActual
+          } : curr);
           this.modalGracias.set(true);
-          // Persistir: sobrevive a reloads de página (no a logout).
-          localStorage.setItem(`arsa_ya_confirmo_${e.legajo}`, 'true');
-          localStorage.setItem(`arsa_observacion_${e.legajo}`, comentarioActual);
+          // Y refresco del backend para sincronizar con la fuente de verdad
+          // (formato exacto de fecha, estado nuevo, etc.).
+          this.recargarEmpleado();
         } else {
           this.error.set(res.error || 'No pudimos confirmar tu descriptivo.');
         }

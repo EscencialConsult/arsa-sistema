@@ -474,16 +474,26 @@ function getMiDescriptivo(legajo) {
       const famCode  = codigo.split('-')[0].toUpperCase();
       const partes   = codComp.split('|');
       const sedeCode = partes.length > 1 ? partes[1].trim().toUpperCase() : '';
+      // Fecha de confirmación del colaborador: si la celda tiene un Date (set
+      // por confirmarDescriptivo con `new Date()`), formateamos a yyyy-MM-dd.
+      // Si está vacía, queda string vacío. El frontend la usa como flag.
+      const fechaRaw = f[COL.FECHA_COLAB];
+      const fechaColaborador = fechaRaw instanceof Date
+        ? Utilities.formatDate(fechaRaw, Session.getScriptTimeZone(), 'yyyy-MM-dd')
+        : str(fechaRaw);
+
       return {
         ok: true,
         data: {
-          legajo:          str(legajo),
-          apellido_nombre: (apellido + ', ' + nombre).trim(),
-          sedeName:        SEDES[sedeCode] || sedeNom,
-          puesto:          familia || FAMILIAS[famCode] || famCode,
-          linkBorrador:    str(f[COL.LINK_BORRAD]),
-          linkDefinitivo:  str(f[COL.LINK_DEFIN]),
-          estado:          normalizarEstado(f[COL.ESTADO])
+          legajo:                 str(legajo),
+          apellido_nombre:        (apellido + ', ' + nombre).trim(),
+          sedeName:               SEDES[sedeCode] || sedeNom,
+          puesto:                 familia || FAMILIAS[famCode] || famCode,
+          linkBorrador:           str(f[COL.LINK_BORRAD]),
+          linkDefinitivo:         str(f[COL.LINK_DEFIN]),
+          estado:                 normalizarEstado(f[COL.ESTADO]),
+          observacionColaborador: str(f[COL.OBS_COLAB]),
+          fechaColaborador:       fechaColaborador
         }
       };
     }

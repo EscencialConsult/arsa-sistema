@@ -49,48 +49,39 @@
 
     <!-- ── Estado A: REVISIÓN COLABORADOR sin confirmar ── -->
     <div *ngIf="estadoVista() === 'A'" class="md-content">
-      <ng-container *ngIf="empleado()?.linkBorrador; else sinLinkBorrador">
-        <h1 class="md-titulo">Tu descriptivo de puesto</h1>
-        <p class="md-intro">
-          Revisalo con calma, dejá un comentario si algo no refleja bien lo que hacés,
-          y confirmá cuando estés listo.
-        </p>
-        <div class="md-doc-wrap"
-             [class.tutorial-highlight-doc]="mostrarTutorial() && pasoTutorial() === 1"
-             #iframeRef>
-          <iframe [src]="docUrlBorrador"
-                  class="md-doc-iframe"
-                  title="Descriptivo de puesto"
-                  allowfullscreen></iframe>
-        </div>
-        <div class="md-form">
-          <label for="md-comentario" class="md-label">
-            ¿Algo que ajustar? <span class="md-label-hint">(opcional)</span>
-          </label>
-          <textarea id="md-comentario"
-                    class="md-textarea"
-                    [class.tutorial-highlight-comment]="mostrarTutorial() && pasoTutorial() === 2"
-                    #textareaRef
-                    placeholder="Escribí acá si algo no está bien o querés agregar algo..."
-                    [(ngModel)]="comentario"
-                    rows="4"></textarea>
-          <div *ngIf="error()" class="md-form-error">{{ error() }}</div>
-        </div>
-      </ng-container>
-      <ng-template #sinLinkBorrador>
-        <div class="md-mensaje">
-          <div class="md-msg-icon">⏳</div>
-          <h2 class="md-msg-title">Tu descriptivo todavía no está listo</h2>
-          <p class="md-msg-text">Te avisamos cuando puedas revisarlo.</p>
-        </div>
-      </ng-template>
+      <h1 class="md-titulo">Tu descriptivo de puesto</h1>
+      <p class="md-intro">
+        Revisalo con calma, dejá un comentario si algo no refleja bien lo que hacés,
+        y confirmá cuando estés listo.
+      </p>
+      <div class="md-doc-wrap"
+           [class.tutorial-highlight-doc]="mostrarTutorial() && pasoTutorial() === 1"
+           #iframeRef>
+        <iframe [src]="docUrlBorrador"
+                class="md-doc-iframe"
+                title="Descriptivo de puesto"
+                allowfullscreen></iframe>
+      </div>
+      <div class="md-form">
+        <label for="md-comentario" class="md-label">
+          ¿Algo que ajustar? <span class="md-label-hint">(opcional)</span>
+        </label>
+        <textarea id="md-comentario"
+                  class="md-textarea"
+                  [class.tutorial-highlight-comment]="mostrarTutorial() && pasoTutorial() === 2"
+                  #textareaRef
+                  placeholder="Escribí acá si algo no está bien o querés agregar algo..."
+                  [(ngModel)]="comentario"
+                  rows="4"></textarea>
+        <div *ngIf="error()" class="md-form-error">{{ error() }}</div>
+      </div>
     </div>
 
-    <!-- ── Estado B: ya confirmó en esta sesión ── -->
+    <!-- ── Estado B: ya confirmó (backend), esperando versión final ── -->
     <div *ngIf="estadoVista() === 'B'" class="md-content">
       <h1 class="md-titulo">Tu descriptivo de puesto</h1>
       <p class="md-intro">
-        Ya confirmaste tu respuesta. Sigue el proceso con el equipo — cuando esté la versión final te avisamos.
+        Ya revisaste tu descriptivo. El equipo está trabajando en la versión final.
       </p>
       <div *ngIf="docUrlBorrador" class="md-doc-wrap">
         <iframe [src]="docUrlBorrador"
@@ -98,17 +89,17 @@
                 title="Descriptivo de puesto"
                 allowfullscreen></iframe>
       </div>
-      <div *ngIf="observacionGuardada" class="md-comentario-card">
+      <div *ngIf="empleado().observacionColaborador" class="md-comentario-card">
         <div class="md-comentario-label">Tu comentario guardado</div>
-        <div class="md-comentario-text">"{{ observacionGuardada }}"</div>
+        <div class="md-comentario-text">"{{ empleado().observacionColaborador }}"</div>
       </div>
     </div>
 
-    <!-- ── Estado C: cualquier otro estado del flujo ── -->
+    <!-- ── Estado C: todavía no listo para revisar ── -->
     <div *ngIf="estadoVista() === 'C'" class="md-mensaje md-mensaje--solo">
-      <div class="md-msg-icon">📋</div>
-      <h2 class="md-msg-title">Tu descriptivo está siendo revisado por el equipo</h2>
-      <p class="md-msg-text">Te avisamos cuando haya novedades.</p>
+      <div class="md-msg-icon">⏳</div>
+      <h2 class="md-msg-title">Tu descriptivo todavía no está listo para revisar</h2>
+      <p class="md-msg-text">Te avisamos cuando puedas verlo.</p>
     </div>
 
   </div>
