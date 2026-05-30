@@ -27,8 +27,8 @@ export class MiDescriptivo implements OnInit {
   confirmando  = signal(false);
   modalSalir   = signal(false);
   modalGracias = signal(false);
-  yaConfirmo   = signal(false);              // memoria solamente — se pierde al recargar
-  observacionGuardada = '';                  // texto que mandó el empleado al confirmar
+  yaConfirmo   = signal(false);              // persiste en localStorage por legajo → sobrevive a reload
+  observacionGuardada = '';                  // texto que mandó el empleado al confirmar (también persistido)
   docUrlBorrador:   SafeResourceUrl | null = null;
   docUrlDefinitivo: SafeResourceUrl | null = null;
   comentario   = '';
@@ -67,6 +67,7 @@ export class MiDescriptivo implements OnInit {
           this.empleado.set(res.data);
           this.docUrlBorrador   = this.armarDocUrl(res.data.linkBorrador);
           this.docUrlDefinitivo = this.armarDocUrl(res.data.linkDefinitivo);
+          this.restaurarConfirmacion(legajo);   // antes del tutorial: si ya confirmó, no lo mostramos
           this.chequearTutorial();
         } else {
           this.error.set(res.error || 'No pudimos cargar tu descriptivo.');
@@ -77,6 +78,17 @@ export class MiDescriptivo implements OnInit {
         this.error.set('Error de conexión. Intentá de nuevo en unos minutos.');
       }
     });
+  }
+
+  // Si el empleado ya confirmó en una sesión previa (mismo navegador),
+  // restauramos el estado para que vuelva a ver el Estado B en lugar del C.
+  // Las claves se borran con localStorage.clear() en salir() — al loguearse de
+  // nuevo desde cero (otro dispositivo / otra sesión) vuelve a Estado C natural.
+  private restaurarConfirmacion(legajo: string): void {
+    if (localStorage.getItem(`arsa_ya_confirmo_${legajo}`) === 'true') {
+      this.yaConfirmo.set(true);
+      this.observacionGuardada = localStorage.getItem(`arsa_observacion_${legajo}`) || '';
+    }
   }
 
   private chequearTutorial(): void {
@@ -162,6 +174,9 @@ export class MiDescriptivo implements OnInit {
           this.observacionGuardada = comentarioActual;
           this.yaConfirmo.set(true);
           this.modalGracias.set(true);
+          // Persistir: sobrevive a reloads de página (no a logout).
+          localStorage.setItem(`arsa_ya_confirmo_${e.legajo}`, 'true');
+          localStorage.setItem(`arsa_observacion_${e.legajo}`, comentarioActual);
         } else {
           this.error.set(res.error || 'No pudimos confirmar tu descriptivo.');
         }
