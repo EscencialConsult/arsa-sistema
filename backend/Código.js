@@ -587,6 +587,467 @@ function confirmarDescriptivo(data) {
 
 
 // ══════════════════════════════════════════════════════════════════
+//  REVISORES — sistema de revisión por jefes (bloque 2)
+//  Schema en hoja `Revisiones`, creada por _setup_revisiones.js.
+//  Una fila por par (empleado, jefe) con su estado de firma.
+// ══════════════════════════════════════════════════════════════════
+
+// Devuelve la lista de jefes candidatos a revisar el descriptivo de un empleado.
+//   nivelSolicitado:
+//     undefined / vacío → calcula 1 nivel arriba del empleado
+//     '0' | '1' | '2' | '3' → ese nivel exacto
+//     'TODOS' → toda la nómina, sin filtro de nivel (buscador total del modal)
+// Cada candidato: { legajo, nombre, familia, funcion, sede, nivel }
+function getJefesElegibles(legajoEmpleado, nivelSolicitado) {
+  if (!legajoEmpleado) return { ok: false, error: 'Falta legajo del empleado' };
+
+  const hoja = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(HOJA);
+  if (!hoja) return { ok: false, error: 'No existe ' + HOJA };
+  const datos = hoja.getDataRange().getValues();
+
+  // 1) Resolver el nivel del empleado
+  let nivelEmpleado = null;
+  for (let i = FILA_INICIO - 1; i < datos.length; i++) {
+    if (str(datos[i][COL.LEGAJO]) === str(legajoEmpleado)) {
+      nivelEmpleado = calcularNivel(datos[i][COL.FAMILIA], datos[i][COL.FUNCION_CCT]);
+      break;
+    }
+  }
+  if (nivelEmpleado === null) return { ok: false, error: 'Empleado no encontrado: ' + legajoEmpleado };
+
+  // 2) Resolver el nivel objetivo
+  let nivelObjetivo;
+  const ns = String(nivelSolicitado || '').trim();
+  if (ns.toUpperCase() === 'TODOS') {
+    nivelObjetivo = 'TODOS';
+  } else if (ns !== '') {
+    nivelObjetivo = Number(ns);
+    if (isNaN(nivelObjetivo) || nivelObjetivo < 0 || nivelObjetivo > 3) {
+      return { ok: false, error: 'nivelSolicitado inválido: "' + nivelSolicitado + '" (esperado 0-3 o TODOS)' };
+    }
+  } else {
+    // Default: 1 nivel arriba. Operativo → 3. Niveles 1-3 → uno menos. Nivel 0 → vacío (Gerente Gral no tiene arriba).
+    if (nivelEmpleado === 'OPERATIVO') nivelObjetivo = 3;
+    else if (nivelEmpleado === 0)      nivelObjetivo = -1;   // sin candidatos posibles
+    else                                nivelObjetivo = nivelEmpleado - 1;
+  }
+
+  // 3) Filtrar nómina
+  const candidatos = [];
+  for (let i = FILA_INICIO - 1; i < datos.length; i++) {
+    const f = datos[i];
+    const legajoCand = str(f[COL.LEGAJO]);
+    if (!legajoCand) continue;
+    if (legajoCand === str(legajoEmpleado)) continue;          // no ser revisor de uno mismo
+
+    const nivelCand = calcularNivel(f[COL.FAMILIA], f[COL.FUNCION_CCT]);
+    if (nivelObjetivo !== 'TODOS' && nivelCand !== nivelObjetivo) continue;
+
+    const apellido = str(f[COL.APELLIDO]);
+    const nombre   = str(f[COL.NOMBRE]);
+    if (!apellido && !nombre) continue;
+
+    candidatos.push({
+      legajo:  legajoCand,
+      nombre:  (apellido + ', ' + nombre).trim(),
+      familia: str(f[COL.FAMILIA]),
+      funcion: str(f[COL.FUNCION_CCT]),
+      sede:    str(f[COL.SEDE]),
+      nivel:   nivelCand
+    });
+  }
+
+  // Orden: por familia, luego apellido
+  candidatos.sort(function(a, b) {
+    if (a.familia !== b.familia) return a.familia < b.familia ? -1 : 1;
+    return a.nombre < b.nombre ? -1 : 1;
+  });
+
+  return {
+    ok: true,
+    nivelEmpleado: nivelEmpleado,
+    nivelObjetivo: nivelObjetivo,
+    data: candidatos
+  };
+}
+
+
+// Asigna un jefe como revisor del descriptivo del empleado.
+//   · Crea fila en Revisiones (firmado vacío) — error si ya existe el par.
+//   · Escribe nombre del jefe en col AB del empleado (organigrama).
+//   · Si rol del jefe en Usuarios era 'empleado' → pasa a 'gerente'.
+function asignarRevisor(data) {
+  if (!data) return { ok: false, error: 'Falta data' };
+  const legajoEmp  = str(data.legajo_empleado);
+  const legajoJefe = str(data.legajo_jefe);
+  const asignadoPor = str(data.asignado_por) || 'admin';
+
+  if (!legajoEmp)  return { ok: false, error: 'Falta legajo_empleado' };
+  if (!legajoJefe) return { ok: false, error: 'Falta legajo_jefe' };
+  if (legajoEmp === legajoJefe) return { ok: false, error: 'Un empleado no puede ser su propio revisor' };
+
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const nomenclador = ss.getSheetByName(HOJA);
+  const revisiones  = ss.getSheetByName(TAB_REVISIONES);
+  const usuarios    = ss.getSheetByName(TAB_USUARIOS);
+  if (!revisiones) return { ok: false, error: 'No existe la hoja Revisiones — correr crearHojaRevisiones()' };
+
+  // 1) Localizar fila del empleado + nombre del jefe (1 sola pasada al nomenclador)
+  const datos = nomenclador.getDataRange().getValues();
+  let rowEmpleado = -1;
+  let jefeNombre = '';
+  for (let i = FILA_INICIO - 1; i < datos.length; i++) {
+    const leg = str(datos[i][COL.LEGAJO]);
+    if (leg === legajoEmp) rowEmpleado = i;
+    if (leg === legajoJefe) {
+      jefeNombre = (str(datos[i][COL.APELLIDO]) + ', ' + str(datos[i][COL.NOMBRE])).trim();
+    }
+  }
+  if (rowEmpleado < 0) return { ok: false, error: 'Empleado no encontrado: ' + legajoEmp };
+  if (!jefeNombre)     return { ok: false, error: 'Jefe no encontrado en nómina: ' + legajoJefe };
+
+  // 2) Validar que el par no exista ya en Revisiones
+  const revLastRow = revisiones.getLastRow();
+  if (revLastRow >= REV_DATA_ROW) {
+    const revDatos = revisiones.getRange(REV_DATA_ROW, 1, revLastRow - REV_DATA_ROW + 1, 8).getValues();
+    for (let i = 0; i < revDatos.length; i++) {
+      if (str(revDatos[i][COL_REV.LEGAJO_EMPLEADO]) === legajoEmp &&
+          str(revDatos[i][COL_REV.JEFE_LEGAJO]) === legajoJefe) {
+        return { ok: false, error: 'Ese jefe ya está asignado como revisor' };
+      }
+    }
+  }
+
+  // 3) Insertar fila nueva en Revisiones
+  const startRow = Math.max(revLastRow + 1, REV_DATA_ROW);
+  revisiones.getRange(startRow, 1, 1, 8).setValues([[
+    legajoEmp, legajoJefe, jefeNombre, asignadoPor, new Date(), '', '', ''
+  ]]);
+
+  // 4) Recomputar col AB del empleado con TODOS los revisores joineados por " / ".
+  // (NO sobrescribimos directo: si ya había otros revisores, los preservamos.)
+  _actualizarABRevisores(nomenclador, revisiones, legajoEmp);
+
+  // 5) Promover rol del jefe a 'gerente' si era 'empleado'
+  const rolCambio = _setRolUsuario(usuarios, legajoJefe, 'empleado', 'gerente');
+
+  return {
+    ok: true,
+    legajo_empleado: legajoEmp,
+    legajo_jefe: legajoJefe,
+    jefe_nombre: jefeNombre,
+    rolCambiado: rolCambio
+  };
+}
+
+
+// Quita un revisor del descriptivo del empleado.
+//   · Error si ese revisor ya firmó.
+//   · Borra fila de Revisiones + limpia col AB del empleado.
+//   · Si al jefe no le quedan más revisiones asignadas → vuelve a 'empleado'.
+function quitarRevisor(data) {
+  if (!data) return { ok: false, error: 'Falta data' };
+  const legajoEmp  = str(data.legajo_empleado);
+  const legajoJefe = str(data.legajo_jefe);
+  if (!legajoEmp)  return { ok: false, error: 'Falta legajo_empleado' };
+  if (!legajoJefe) return { ok: false, error: 'Falta legajo_jefe' };
+
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const nomenclador = ss.getSheetByName(HOJA);
+  const revisiones  = ss.getSheetByName(TAB_REVISIONES);
+  const usuarios    = ss.getSheetByName(TAB_USUARIOS);
+  if (!revisiones) return { ok: false, error: 'No existe la hoja Revisiones' };
+
+  const revLastRow = revisiones.getLastRow();
+  if (revLastRow < REV_DATA_ROW) return { ok: false, error: 'No hay revisiones cargadas' };
+
+  // 1) Localizar fila
+  const revDatos = revisiones.getRange(REV_DATA_ROW, 1, revLastRow - REV_DATA_ROW + 1, 8).getValues();
+  let rowIdx = -1;
+  for (let i = 0; i < revDatos.length; i++) {
+    if (str(revDatos[i][COL_REV.LEGAJO_EMPLEADO]) === legajoEmp &&
+        str(revDatos[i][COL_REV.JEFE_LEGAJO]) === legajoJefe) {
+      rowIdx = i; break;
+    }
+  }
+  if (rowIdx < 0) return { ok: false, error: 'Ese revisor no está asignado a este descriptivo' };
+
+  // 2) Validar que no haya firmado
+  if (str(revDatos[rowIdx][COL_REV.FIRMADO]).toUpperCase() === 'SI') {
+    return { ok: false, error: 'No se puede quitar: ya firmó' };
+  }
+
+  // 3) Borrar la fila
+  revisiones.deleteRow(REV_DATA_ROW + rowIdx);
+
+  // 4) Recomputar col AB del empleado con los revisores que QUEDAN en Revisiones.
+  // Si quedan 0, AB queda vacío. Si quedan otros, AB sigue mostrándolos.
+  _actualizarABRevisores(nomenclador, revisiones, legajoEmp);
+
+  // 5) Contar cuántas filas le quedan al jefe (re-leer después del delete)
+  let quedanAlJefe = 0;
+  const revLastRowAfter = revisiones.getLastRow();
+  if (revLastRowAfter >= REV_DATA_ROW) {
+    const revDatosAfter = revisiones.getRange(REV_DATA_ROW, 1, revLastRowAfter - REV_DATA_ROW + 1, 8).getValues();
+    for (let i = 0; i < revDatosAfter.length; i++) {
+      if (str(revDatosAfter[i][COL_REV.JEFE_LEGAJO]) === legajoJefe) quedanAlJefe++;
+    }
+  }
+
+  // 6) Si quedan 0, revertir rol a 'empleado'
+  let rolRevertido = false;
+  if (quedanAlJefe === 0) {
+    rolRevertido = _setRolUsuario(usuarios, legajoJefe, 'gerente', 'empleado');
+  }
+
+  return {
+    ok: true,
+    legajo_empleado: legajoEmp,
+    legajo_jefe: legajoJefe,
+    quedanAlJefe: quedanAlJefe,
+    rolRevertido: rolRevertido
+  };
+}
+
+
+// Lista de revisores de un descriptivo, con su estado de firma.
+function getRevisoresPorDescriptivo(legajoEmpleado) {
+  if (!legajoEmpleado) return { ok: false, error: 'Falta legajo_empleado' };
+
+  const revisiones = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(TAB_REVISIONES);
+  if (!revisiones) return { ok: false, error: 'No existe la hoja Revisiones' };
+
+  const revLastRow = revisiones.getLastRow();
+  if (revLastRow < REV_DATA_ROW) return { ok: true, data: [] };
+
+  const revDatos = revisiones.getRange(REV_DATA_ROW, 1, revLastRow - REV_DATA_ROW + 1, 8).getValues();
+  const tz = Session.getScriptTimeZone();
+  const out = [];
+
+  for (let i = 0; i < revDatos.length; i++) {
+    if (str(revDatos[i][COL_REV.LEGAJO_EMPLEADO]) !== str(legajoEmpleado)) continue;
+    const fechaAsig = revDatos[i][COL_REV.FECHA_ASIGNACION];
+    const fechaFirma = revDatos[i][COL_REV.FECHA_FIRMA];
+    out.push({
+      jefe_legajo:      str(revDatos[i][COL_REV.JEFE_LEGAJO]),
+      jefe_nombre:      str(revDatos[i][COL_REV.JEFE_NOMBRE]),
+      asignado_por:     str(revDatos[i][COL_REV.ASIGNADO_POR]),
+      fecha_asignacion: fechaAsig instanceof Date ? Utilities.formatDate(fechaAsig, tz, 'yyyy-MM-dd') : str(fechaAsig),
+      firmado:          str(revDatos[i][COL_REV.FIRMADO]).toUpperCase() === 'SI',
+      fecha_firma:      fechaFirma instanceof Date ? Utilities.formatDate(fechaFirma, tz, 'yyyy-MM-dd') : str(fechaFirma),
+      observacion:      str(revDatos[i][COL_REV.OBSERVACION])
+    });
+  }
+
+  return { ok: true, data: out };
+}
+
+
+// Devuelve los descriptivos donde un jefe figura como revisor
+// Y el empleado está en estado REVISIÓN JEFE (no antes).
+// Incluye el comentario del colaborador para que el jefe lo lea.
+function getNominaPorJefe(legajoJefe) {
+  if (!legajoJefe) return { ok: false, error: 'Falta legajo_jefe' };
+
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const revisiones  = ss.getSheetByName(TAB_REVISIONES);
+  const nomenclador = ss.getSheetByName(HOJA);
+  if (!revisiones) return { ok: false, error: 'No existe la hoja Revisiones' };
+
+  // 1) Recolectar empleados asignados a este jefe
+  const revLastRow = revisiones.getLastRow();
+  if (revLastRow < REV_DATA_ROW) return { ok: true, data: [] };
+
+  const revDatos = revisiones.getRange(REV_DATA_ROW, 1, revLastRow - REV_DATA_ROW + 1, 8).getValues();
+  const asignados = {};
+  for (let i = 0; i < revDatos.length; i++) {
+    if (str(revDatos[i][COL_REV.JEFE_LEGAJO]) !== str(legajoJefe)) continue;
+    const legEmp = str(revDatos[i][COL_REV.LEGAJO_EMPLEADO]);
+    asignados[legEmp] = {
+      firmado: str(revDatos[i][COL_REV.FIRMADO]).toUpperCase() === 'SI'
+    };
+  }
+  if (Object.keys(asignados).length === 0) return { ok: true, data: [] };
+
+  // 2) Filtrar nómina por estado REVISIÓN JEFE
+  const datos = nomenclador.getDataRange().getValues();
+  const out = [];
+  for (let i = FILA_INICIO - 1; i < datos.length; i++) {
+    const f = datos[i];
+    const legajoEmp = str(f[COL.LEGAJO]);
+    if (!legajoEmp || !asignados[legajoEmp]) continue;
+
+    const estado = normalizarEstado(f[COL.ESTADO]);
+    if (estado !== 'REVISIÓN JEFE') continue;
+
+    const codigo   = str(f[COL.CODIGO]);
+    const codComp  = str(f[COL.COD_COMPLETO]);
+    const sedeNom  = str(f[COL.SEDE]);
+    const partes   = codComp.split('|');
+    const sedeCode = partes.length > 1 ? partes[1].trim().toUpperCase() : '';
+    const famCode  = codigo.split('-')[0].toUpperCase();
+
+    out.push({
+      legajo:           legajoEmp,
+      apellido_nombre:  (str(f[COL.APELLIDO]) + ', ' + str(f[COL.NOMBRE])).trim(),
+      sede:             SEDES[sedeCode] || sedeNom,
+      familia:          str(f[COL.FAMILIA]) || FAMILIAS[famCode] || famCode,
+      linkBorrador:     str(f[COL.LINK_BORRAD]),
+      observacion_colab: str(f[COL.OBS_COLAB]),
+      yaFirmoEsteJefe:  asignados[legajoEmp].firmado,
+      estado:           estado
+    });
+  }
+
+  return { ok: true, data: out };
+}
+
+
+// El jefe firma un descriptivo asignado.
+//   · Valida rol gerente, asignación, no haber firmado ya.
+//   · Marca firmado=SI + fecha + observación.
+//   · Si era el último pendiente → avanza estado del empleado a PRESENTADO A RRHH
+//     (transición automática del sistema; bypass de validarTransicion porque
+//     no es una acción de admin/rrhh manual).
+function firmarRevision(data) {
+  if (!data) return { ok: false, error: 'Falta data' };
+  const legajoEmp   = str(data.legajo_empleado);
+  const legajoJefe  = str(data.legajo_jefe);
+  const observacion = str(data.observacion);
+  const rol         = String(data.rol || '').toLowerCase();
+
+  if (!legajoEmp)  return { ok: false, error: 'Falta legajo_empleado' };
+  if (!legajoJefe) return { ok: false, error: 'Falta legajo_jefe' };
+  if (rol !== 'gerente') return { ok: false, error: 'Acción reservada para rol gerente' };
+
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const revisiones  = ss.getSheetByName(TAB_REVISIONES);
+  const nomenclador = ss.getSheetByName(HOJA);
+  if (!revisiones) return { ok: false, error: 'No existe la hoja Revisiones' };
+
+  const revLastRow = revisiones.getLastRow();
+  if (revLastRow < REV_DATA_ROW) return { ok: false, error: 'No hay revisiones cargadas' };
+
+  // 1) Localizar la fila de este jefe para este empleado
+  const revDatos = revisiones.getRange(REV_DATA_ROW, 1, revLastRow - REV_DATA_ROW + 1, 8).getValues();
+  let rowIdx = -1;
+  for (let i = 0; i < revDatos.length; i++) {
+    if (str(revDatos[i][COL_REV.LEGAJO_EMPLEADO]) === legajoEmp &&
+        str(revDatos[i][COL_REV.JEFE_LEGAJO]) === legajoJefe) {
+      rowIdx = i; break;
+    }
+  }
+  if (rowIdx < 0) return { ok: false, error: 'No estás asignado como revisor de este descriptivo' };
+
+  // 2) Validar que no haya firmado
+  if (str(revDatos[rowIdx][COL_REV.FIRMADO]).toUpperCase() === 'SI') {
+    return { ok: false, error: 'Ya firmaste este descriptivo' };
+  }
+
+  // 3) Marcar firmado
+  const filaSheet = REV_DATA_ROW + rowIdx;
+  revisiones.getRange(filaSheet, COL_REV.FIRMADO + 1).setValue('SI');
+  revisiones.getRange(filaSheet, COL_REV.FECHA_FIRMA + 1).setValue(new Date());
+  revisiones.getRange(filaSheet, COL_REV.OBSERVACION + 1).setValue(observacion);
+
+  // 4) Contar pendientes del empleado (re-leer todo)
+  const revLastRowAfter = revisiones.getLastRow();
+  const revDatosAfter = revisiones.getRange(REV_DATA_ROW, 1, revLastRowAfter - REV_DATA_ROW + 1, 8).getValues();
+  let pendientes = 0, total = 0;
+  for (let i = 0; i < revDatosAfter.length; i++) {
+    if (str(revDatosAfter[i][COL_REV.LEGAJO_EMPLEADO]) !== legajoEmp) continue;
+    total++;
+    if (str(revDatosAfter[i][COL_REV.FIRMADO]).toUpperCase() !== 'SI') pendientes++;
+  }
+
+  // 5) Si era el último pendiente, avanzar estado
+  let avanzoEstado = false;
+  let estadoNuevo  = '';
+  if (pendientes === 0 && total > 0) {
+    const datos = nomenclador.getDataRange().getValues();
+    for (let i = FILA_INICIO - 1; i < datos.length; i++) {
+      if (str(datos[i][COL.LEGAJO]) === legajoEmp) {
+        const estadoActual = normalizarEstado(datos[i][COL.ESTADO]);
+        if (estadoActual === 'REVISIÓN JEFE') {
+          nomenclador.getRange(i + 1, COL.ESTADO + 1).setValue('PRESENTADO A RRHH');
+          avanzoEstado = true;
+          estadoNuevo  = 'PRESENTADO A RRHH';
+        }
+        break;
+      }
+    }
+  }
+
+  return {
+    ok: true,
+    legajo_empleado: legajoEmp,
+    legajo_jefe: legajoJefe,
+    pendientes: pendientes,
+    total: total,
+    todosFirmaron: pendientes === 0,
+    avanzoEstado: avanzoEstado,
+    estadoNuevo: estadoNuevo
+  };
+}
+
+
+// Helper privado: recomputa la celda AB (col 28) del empleado leyendo TODAS sus
+// filas en Revisiones y joineando los `jefe_nombre` con " / ".
+// Lo llaman asignarRevisor y quitarRevisor después de modificar Revisiones —
+// así AB siempre refleja el estado real, sin importar cuántos revisores haya.
+// Si no quedan revisiones para el empleado, AB queda vacío.
+function _actualizarABRevisores(nomencladorSheet, revisionesSheet, legajoEmpleado) {
+  // 1) Recolectar jefe_nombre de Revisiones para este empleado
+  const nombres = [];
+  const revLastRow = revisionesSheet.getLastRow();
+  if (revLastRow >= REV_DATA_ROW) {
+    const revDatos = revisionesSheet.getRange(REV_DATA_ROW, 1, revLastRow - REV_DATA_ROW + 1, 8).getValues();
+    for (let i = 0; i < revDatos.length; i++) {
+      if (str(revDatos[i][COL_REV.LEGAJO_EMPLEADO]) === str(legajoEmpleado)) {
+        const nombre = str(revDatos[i][COL_REV.JEFE_NOMBRE]);
+        if (nombre) nombres.push(nombre);
+      }
+    }
+  }
+
+  // 2) Buscar fila del empleado en NOMENCLADOR y escribir col AB
+  const datos = nomencladorSheet.getDataRange().getValues();
+  for (let i = FILA_INICIO - 1; i < datos.length; i++) {
+    if (str(datos[i][COL.LEGAJO]) === str(legajoEmpleado)) {
+      nomencladorSheet.getRange(i + 1, 28).setValue(nombres.join(' / '));
+      return;
+    }
+  }
+}
+
+
+// Helper privado: cambia el rol de un usuario en la hoja Usuarios solo si su
+// rol actual matchea `rolEsperado`. Devuelve true si efectivamente cambió.
+function _setRolUsuario(usuariosSheet, legajo, rolEsperado, rolNuevo) {
+  if (!usuariosSheet) return false;
+  const lastRow = usuariosSheet.getLastRow();
+  if (lastRow < 2) return false;
+  const headers = usuariosSheet.getRange(1, 1, 1, usuariosSheet.getLastColumn()).getValues()[0];
+  const colLegajo = headers.indexOf('legajo');
+  const colRol    = headers.indexOf('rol');
+  if (colLegajo < 0 || colRol < 0) return false;
+
+  const datos = usuariosSheet.getRange(2, 1, lastRow - 1, usuariosSheet.getLastColumn()).getValues();
+  for (let i = 0; i < datos.length; i++) {
+    if (str(datos[i][colLegajo]) === str(legajo)) {
+      const rolActual = String(datos[i][colRol] || '').trim().toLowerCase();
+      if (rolActual === rolEsperado) {
+        usuariosSheet.getRange(2 + i, colRol + 1).setValue(rolNuevo);
+        return true;
+      }
+      return false;
+    }
+  }
+  return false;
+}
+
+
+// ══════════════════════════════════════════════════════════════════
 //  LINKS / preview
 // ══════════════════════════════════════════════════════════════════
 
@@ -708,6 +1169,9 @@ function doGet(e) {
     else if (accion === 'login')             res = login(p.usuario, p.password);
     else if (accion === 'loginEmpleado')     res = loginEmpleado(p.legajo, p.password);
     else if (accion === 'getMiDescriptivo')  res = getMiDescriptivo(p.legajo);
+    else if (accion === 'getJefesElegibles') res = getJefesElegibles(p.legajo, p.nivel);
+    else if (accion === 'getRevisoresPorDescriptivo') res = getRevisoresPorDescriptivo(p.legajo);
+    else if (accion === 'getNominaPorJefe')  res = getNominaPorJefe(p.legajo_jefe);
     else if (accion === 'read')              res = (p.tab === 'Nomina')
                                                ? getNomina({ all: 'true' }, rol)
                                                : { ok: true, data: getRows(p.tab) };
@@ -912,6 +1376,9 @@ function doPost(e) {
       case 'createUsuario':       res = createRow(TAB_USUARIOS, body.data, 'usuario'); break;
       case 'habilitarColaborador': res = habilitarColaborador(body.data && body.data.legajo, body.data && body.data.password, body.data && body.data.telefono); break;
       case 'confirmarDescriptivo': res = confirmarDescriptivo(body.data); break;
+      case 'asignarRevisor':       res = asignarRevisor(body.data); break;
+      case 'quitarRevisor':        res = quitarRevisor(body.data); break;
+      case 'firmarRevision':       res = firmarRevision(body.data); break;
       default: res = { ok: false, error: 'Acción no reconocida' };
     }
     return json(res);
