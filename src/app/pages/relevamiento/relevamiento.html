@@ -249,6 +249,49 @@
                   </div>
                 </div>
 
+                <!-- ── 👥 Revisores del descriptivo (bloque 3) ──────────── -->
+                <div class="panel-seccion">
+                  <div class="panel-seccion-titulo">👥 Revisores del descriptivo</div>
+                  <div class="panel-card">
+                    <div *ngIf="e.revisoresCargando" class="rev-loading">Cargando revisores...</div>
+
+                    <div *ngIf="!e.revisoresCargando && (!e.revisores || e.revisores.length === 0)"
+                         class="rev-vacio">
+                      Todavía no asignaste revisores.
+                    </div>
+
+                    <div *ngIf="!e.revisoresCargando && e.revisores && e.revisores.length > 0"
+                         class="rev-lista">
+                      <div *ngFor="let r of e.revisores" class="rev-item">
+                        <span class="rev-dot"
+                              [class.rev-dot--green]="r.firmado"
+                              [class.rev-dot--orange]="!r.firmado"></span>
+                        <div class="rev-info">
+                          <div class="rev-nombre">{{ r.jefe_nombre }}</div>
+                          <div class="rev-meta" *ngIf="r.firmado">
+                            ✓ Firmó {{ formatearFecha(r.fecha_firma) }}<span *ngIf="r.observacion"> — "{{ r.observacion }}"</span>
+                          </div>
+                          <div class="rev-meta rev-meta--pendiente" *ngIf="!r.firmado">
+                            ⏳ Pendiente de firma
+                          </div>
+                        </div>
+                        <button class="rev-quitar"
+                                (click)="quitarRevisor(e, r.jefe_legajo)"
+                                [disabled]="r.firmado || !puedeEditar"
+                                [title]="r.firmado ? 'Ya firmó, no se puede quitar' : 'Quitar revisor'">
+                          ✕
+                        </button>
+                      </div>
+                    </div>
+
+                    <button *ngIf="puedeEditar && !e.revisoresCargando"
+                            class="btn btn-s btn-sm rev-add-btn"
+                            (click)="abrirModalRevisor(e)">
+                      + Agregar revisor
+                    </button>
+                  </div>
+                </div>
+
                 <!-- ── 👤 Acceso del empleado ────────────────────────────── -->
                 <div class="panel-seccion">
                   <div class="panel-seccion-titulo">👤 Acceso del empleado</div>
@@ -425,5 +468,105 @@
         {{ modalHabilitar.guardando ? 'Guardando...' : 'Confirmar' }}
       </button>
     </div>
+  </div>
+</div>
+
+<!-- MODAL AGREGAR REVISOR (bloque 3) ─────────────────────────────── -->
+<div class="modal-overlay" *ngIf="modalRevisor.abierto" (click)="cerrarModalRevisor()">
+  <div class="modal modal-revisor" (click)="$event.stopPropagation()">
+    <div class="modal-header">
+      <div class="modal-title">Agregar revisor</div>
+      <div class="modal-sub">
+        {{ modalRevisor.empleado?.apellido_nombre }}
+        <span class="rev-nivel-emp" *ngIf="labelNivelEmpleado()">— {{ labelNivelEmpleado() }}</span>
+      </div>
+      <button class="modal-close" (click)="cerrarModalRevisor()">✕</button>
+    </div>
+
+    <div class="modal-body">
+      <div *ngIf="modalRevisor.cargando" class="rev-modal-loading">Cargando candidatos...</div>
+
+      <ng-container *ngIf="!modalRevisor.cargando">
+
+        <!-- 4 botones de nivel (modo niveles) -->
+        <div *ngIf="!modalRevisor.modoTodos" class="rev-nivel-grid">
+          <button class="rev-nivel-btn"
+                  [class.rev-nivel-btn--activo]="modalRevisor.nivelSeleccionado === 0"
+                  (click)="seleccionarNivel(0)">
+            <div class="rev-nivel-btn-titulo">Gerente General</div>
+            <div class="rev-nivel-btn-meta">Nivel 0 · {{ modalRevisor.conteoPorNivel[0] }}</div>
+          </button>
+          <button class="rev-nivel-btn"
+                  [class.rev-nivel-btn--activo]="modalRevisor.nivelSeleccionado === 1"
+                  (click)="seleccionarNivel(1)">
+            <div class="rev-nivel-btn-titulo">Gerente</div>
+            <div class="rev-nivel-btn-meta">Nivel 1 · {{ modalRevisor.conteoPorNivel[1] }}</div>
+          </button>
+          <button class="rev-nivel-btn"
+                  [class.rev-nivel-btn--activo]="modalRevisor.nivelSeleccionado === 2"
+                  (click)="seleccionarNivel(2)">
+            <div class="rev-nivel-btn-titulo">Subgerente</div>
+            <div class="rev-nivel-btn-meta">Nivel 2 · {{ modalRevisor.conteoPorNivel[2] }}</div>
+          </button>
+          <button class="rev-nivel-btn"
+                  [class.rev-nivel-btn--activo]="modalRevisor.nivelSeleccionado === 3"
+                  (click)="seleccionarNivel(3)">
+            <div class="rev-nivel-btn-titulo">Jefatura</div>
+            <div class="rev-nivel-btn-meta">Nivel 3 · {{ modalRevisor.conteoPorNivel[3] }}</div>
+          </button>
+        </div>
+
+        <!-- Toggle a modo "toda la nómina" -->
+        <button *ngIf="!modalRevisor.modoTodos"
+                class="rev-todos-btn"
+                (click)="activarModoTodos()">
+          ¿No aparece? Buscar en toda la nómina
+        </button>
+
+        <!-- Aviso modo TODOS -->
+        <div *ngIf="modalRevisor.modoTodos" class="rev-aviso-todos">
+          <strong>⚠ Buscando en toda la nómina</strong> — incluye empleados que no son jefes.
+          Usar solo si hay un error de carga grave.
+          <button class="rev-volver-niveles" (click)="volverANiveles()">← Volver a los niveles</button>
+        </div>
+
+        <!-- Buscador -->
+        <input class="modal-input rev-buscador"
+               type="text"
+               placeholder="Buscar por nombre, puesto o sede..."
+               [(ngModel)]="modalRevisor.busqueda" />
+
+        <!-- Lista de candidatos -->
+        <div class="rev-candidatos-lista">
+          <div *ngIf="candidatosVisibles.length === 0" class="rev-candidatos-vacio">
+            No hay candidatos que coincidan.
+          </div>
+          <div *ngFor="let c of candidatosVisibles"
+               class="rev-candidato"
+               [class.rev-candidato--seleccionado]="modalRevisor.seleccionado?.legajo === c.legajo"
+               [class.rev-candidato--asignado]="esYaAsignado(c.legajo)"
+               (click)="seleccionarCandidato(c)">
+            <div class="rev-candidato-info">
+              <div class="rev-candidato-nombre">{{ c.nombre }}</div>
+              <div class="rev-candidato-meta">
+                {{ c.funcion || c.familia }} · {{ c.sede }} · Leg. {{ c.legajo }}
+              </div>
+            </div>
+            <span *ngIf="esYaAsignado(c.legajo)" class="rev-asignado-badge">✓ Asignado</span>
+          </div>
+        </div>
+      </ng-container>
+    </div>
+
+    <div class="modal-footer">
+      <button class="btn btn-s" (click)="cerrarModalRevisor()" [disabled]="modalRevisor.asignando">
+        Cancelar
+      </button>
+      <button class="btn btn-p" (click)="asignarRevisorSeleccionado()"
+              [disabled]="modalRevisor.asignando || !modalRevisor.seleccionado || esYaAsignado(modalRevisor.seleccionado?.legajo)">
+        {{ modalRevisor.asignando ? 'Asignando...' : 'Asignar revisor' }}
+      </button>
+    </div>
+
   </div>
 </div>

@@ -1411,3 +1411,298 @@
   font-size: 14px;
   padding: 12px 32px;
 }
+
+/* ── Sección revisores (bloque 3) ─────────────────────────────── */
+.rev-loading {
+  font-size: 12px;
+  color: #7A9AAF;
+  font-style: italic;
+}
+
+.rev-vacio {
+  font-size: 12px;
+  color: #7A9AAF;
+  font-style: italic;
+  padding: 6px 0;
+}
+
+.rev-lista {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.rev-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 10px;
+  background: #fff;
+  border: 1px solid #eef2f6;
+  border-radius: 6px;
+}
+
+.rev-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  background: #ccc;
+}
+
+.rev-dot--green  { background: #2D7D5A; }
+.rev-dot--orange { background: #e8924a; }
+
+.rev-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.rev-nombre {
+  font-size: 13px;
+  font-weight: 600;
+  color: #0A2E4A;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.rev-meta {
+  font-size: 11px;
+  color: #2D7D5A;
+  margin-top: 2px;
+}
+
+.rev-meta--pendiente {
+  color: #9A5020;
+}
+
+.rev-quitar {
+  background: none;
+  border: 1px solid #cddae3;
+  color: #5E7A8F;
+  width: 26px;
+  height: 26px;
+  border-radius: 5px;
+  cursor: pointer;
+  font-size: 11px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  transition: background .15s, border-color .15s, color .15s;
+}
+
+.rev-quitar:hover:not(:disabled) {
+  background: #fce4d6;
+  border-color: #f0b890;
+  color: #A0411A;
+}
+
+.rev-quitar:disabled {
+  opacity: .35;
+  cursor: not-allowed;
+}
+
+.rev-add-btn {
+  background: #fff;
+  border: 1px dashed #1A5F8A;
+  color: #1A5F8A;
+}
+
+.rev-add-btn:hover {
+  background: #f0f7fb;
+}
+
+/* ── Modal agregar revisor ────────────────────────────────────── */
+.modal-revisor {
+  max-width: 560px;
+  width: 95vw;
+}
+
+.rev-nivel-emp {
+  font-weight: 500;
+  color: #5E7A8F;
+}
+
+.rev-modal-loading {
+  text-align: center;
+  padding: 30px;
+  color: #7A9AAF;
+  font-style: italic;
+}
+
+.rev-nivel-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.rev-nivel-btn {
+  background: #fff;
+  border: 1.5px solid #cddae3;
+  border-radius: 8px;
+  padding: 10px 12px;
+  cursor: pointer;
+  text-align: left;
+  font-family: inherit;
+  transition: border-color .15s, background .15s;
+}
+
+.rev-nivel-btn:hover {
+  border-color: #4BAED4;
+  background: #f0f7fb;
+}
+
+.rev-nivel-btn--activo {
+  border-color: #1A5F8A;
+  background: #e8f0fb;
+}
+
+.rev-nivel-btn-titulo {
+  font-size: 13px;
+  font-weight: 600;
+  color: #0A2E4A;
+}
+
+.rev-nivel-btn-meta {
+  font-size: 11px;
+  color: #5E7A8F;
+  margin-top: 2px;
+  font-family: 'JetBrains Mono', monospace;
+  letter-spacing: .02em;
+}
+
+.rev-todos-btn {
+  width: 100%;
+  background: none;
+  border: 1px dashed #7A9AAF;
+  color: #5E7A8F;
+  font-size: 12px;
+  padding: 8px;
+  border-radius: 6px;
+  cursor: pointer;
+  margin-bottom: 12px;
+  font-family: inherit;
+}
+
+.rev-todos-btn:hover {
+  background: #f4f7fa;
+  border-color: #1A5F8A;
+  color: #1A5F8A;
+}
+
+.rev-aviso-todos {
+  background: #fff4e8;
+  border: 1px solid #f0b890;
+  color: #9A5020;
+  border-radius: 6px;
+  padding: 10px 12px;
+  font-size: 12px;
+  line-height: 1.5;
+  margin-bottom: 12px;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.rev-aviso-todos strong {
+  font-weight: 600;
+}
+
+.rev-volver-niveles {
+  margin-left: auto;
+  background: none;
+  border: none;
+  color: #1A5F8A;
+  text-decoration: underline;
+  font-size: 11px;
+  cursor: pointer;
+  font-family: inherit;
+}
+
+.rev-buscador {
+  margin-bottom: 10px;
+}
+
+.rev-candidatos-lista {
+  max-height: 320px;
+  overflow-y: auto;
+  border: 1px solid #eef2f6;
+  border-radius: 6px;
+  background: #f8fafc;
+}
+
+.rev-candidatos-vacio {
+  padding: 30px;
+  text-align: center;
+  color: #7A9AAF;
+  font-style: italic;
+  font-size: 12px;
+}
+
+.rev-candidato {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 9px 12px;
+  border-bottom: 1px solid #eef2f6;
+  cursor: pointer;
+  transition: background .12s;
+}
+
+.rev-candidato:last-child {
+  border-bottom: 0;
+}
+
+.rev-candidato:hover {
+  background: #fff;
+}
+
+.rev-candidato--seleccionado {
+  background: #e8f0fb !important;
+  border-left: 3px solid #1A5F8A;
+  padding-left: 9px;
+}
+
+.rev-candidato--asignado {
+  opacity: .55;
+  cursor: not-allowed;
+}
+
+.rev-candidato-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.rev-candidato-nombre {
+  font-size: 13px;
+  font-weight: 500;
+  color: #0A2E4A;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.rev-candidato-meta {
+  font-size: 11px;
+  color: #5E7A8F;
+  margin-top: 2px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.rev-asignado-badge {
+  font-size: 10px;
+  color: #2D7D5A;
+  background: #e8f5ee;
+  border: 1px solid #86c9a8;
+  padding: 3px 8px;
+  border-radius: 12px;
+  font-weight: 600;
+  flex-shrink: 0;
+}

@@ -135,6 +135,28 @@ export class Relevamiento implements OnInit {
     texto: string;
   } = { abierto: false, empleado: null, destino: '', texto: '' };
 
+  // ── Modal agregar revisor (bloque 3) ──────────────────────────────
+  // Cache de TODOS los candidatos en una sola query (con nivel='TODOS'),
+  // después filtramos client-side por nivel + búsqueda.
+  modalRevisor: {
+    abierto: boolean;
+    empleado: any;
+    nivelEmpleado: any;                          // 0|1|2|3|'OPERATIVO'|null
+    candidatosTodos: any[];                      // respuesta completa
+    conteoPorNivel: { [k: number]: number };
+    nivelSeleccionado: number | null;            // null = ninguno seleccionado
+    modoTodos: boolean;                          // true = ignora filtro de nivel
+    seleccionado: any | null;
+    cargando: boolean;
+    asignando: boolean;
+    busqueda: string;
+  } = {
+    abierto: false, empleado: null, nivelEmpleado: null,
+    candidatosTodos: [], conteoPorNivel: { 0: 0, 1: 0, 2: 0, 3: 0 },
+    nivelSeleccionado: null, modoTodos: false, seleccionado: null,
+    cargando: false, asignando: false, busqueda: ''
+  };
+
   // ── Modal habilitar (B2.2 + B2.3 — solo password; el tel se guarda
   //    junto con todos los datos del panel ANTES de abrir este modal) ─
   modalHabilitar: {
@@ -443,6 +465,201 @@ export class Relevamiento implements OnInit {
   // ── Toggle fila privada ───────────────────────────────────────────
   toggleDetalle(legajo: string) {
     this.filaAbierta = this.filaAbierta === legajo ? '' : legajo;
+    if (this.filaAbierta) {
+      const emp = this.empleados().find(e => e.legajo === legajo);
+      if (emp && !emp.revisoresCargado) this.cargarRevisores(emp);
+    }
+  }
+
+  // ── Revisores (bloque 3) ──────────────────────────────────────────
+  // Lazy-load: solo se piden al expandir el panel del empleado.
+  cargarRevisores(emp: any): void {
+    emp.revisoresCargando = true;
+    this.empleados.update(l => l.slice());
+    this.api.getRevisoresPorDescriptivo(emp.legajo).subscribe({
+      next: (res) => {
+        emp.revisoresCargando = false;
+        if (res.ok) {
+          emp.revisores = res.data || [];
+          emp.revisoresCargado = true;
+        }
+        this.empleados.update(l => l.slice());
+      },
+      error: () => {
+        emp.revisoresCargando = false;
+        this.empleados.update(l => l.slice());
+      }
+    });
+  }
+
+  tieneRevisores(emp: any): boolean {
+    return !!(emp && emp.revisores && emp.revisores.length > 0);
+  }
+
+  // Formato DD/MM desde yyyy-MM-dd del backend.
+  formatearFecha(fecha: string): string {
+    if (!fecha) return '';
+    const partes = String(fecha).split('-');
+    if (partes.length !== 3) return fecha;
+    return `${partes[2]}/${partes[1]}`;
+  }
+
+  quitarRevisor(emp: any, jefeLegajo: string): void {
+    if (this.rolUsuario !== 'admin') return;
+    this.api.quitarRevisor({ legajo_empleado: emp.legajo, legajo_jefe: jefeLegajo }).subscribe({
+      next: (res) => {
+        if (res.ok) {
+          emp.revisoresCargado = false;
+          this.cargarRevisores(emp);
+        } else {
+          this.errorMsg.set(res.error || 'No se pudo quitar el revisor');
+          setTimeout(() => this.errorMsg.set(''), 4000);
+        }
+      },
+      error: () => {
+        this.errorMsg.set('Error de conexión');
+        setTimeout(() => this.errorMsg.set(''), 4000);
+      }
+    });
+  }
+
+  // ── Modal agregar revisor ─────────────────────────────────────────
+  abrirModalRevisor(emp: any): void {
+    if (this.rolUsuario !== 'admin') return;
+    this.modalRevisor = {
+      abierto: true, empleado: emp, nivelEmpleado: null,
+      candidatosTodos: [], conteoPorNivel: { 0: 0, 1: 0, 2: 0, 3: 0 },
+      nivelSeleccionado: null, modoTodos: false, seleccionado: null,
+      cargando: true, asignando: false, busqueda: ''
+    };
+
+    // Una sola query con TODOS. Después filtramos client-side por nivel + búsqueda.
+    this.api.getJefesElegibles(emp.legajo, 'TODOS').subscribe({
+      next: (res) => {
+        if (res.ok) {
+          const conteo: { [k: number]: number } = { 0: 0, 1: 0, 2: 0, 3: 0 };
+          for (const c of res.data) {
+            if (c.nivel === 0 || c.nivel === 1 || c.nivel === 2 || c.nivel === 3) conteo[c.nivel]++;
+          }
+          // Default seleccionado: 1 nivel arriba del empleado
+          const nivelEmp = res.nivelEmpleado;
+          let nivelDefault: number | null;
+          if (nivelEmp === 'OPERATIVO')   nivelDefault = 3;
+          else if (nivelEmp === 0)        nivelDefault = null;   // Gerente Gral. no tiene superior
+          else if (typeof nivelEmp === 'number') nivelDefault = nivelEmp - 1;
+          else                            nivelDefault = 3;
+
+          this.modalRevisor.nivelEmpleado     = nivelEmp;
+          this.modalRevisor.candidatosTodos   = res.data || [];
+          this.modalRevisor.conteoPorNivel    = conteo;
+          this.modalRevisor.nivelSeleccionado = nivelDefault;
+          this.modalRevisor.cargando          = false;
+        } else {
+          this.modalRevisor.cargando = false;
+          this.errorMsg.set(res.error || 'No se pudo cargar la lista de jefes');
+        }
+      },
+      error: () => {
+        this.modalRevisor.cargando = false;
+        this.errorMsg.set('Error de conexión');
+      }
+    });
+  }
+
+  cerrarModalRevisor(): void {
+    this.modalRevisor = {
+      abierto: false, empleado: null, nivelEmpleado: null,
+      candidatosTodos: [], conteoPorNivel: { 0: 0, 1: 0, 2: 0, 3: 0 },
+      nivelSeleccionado: null, modoTodos: false, seleccionado: null,
+      cargando: false, asignando: false, busqueda: ''
+    };
+  }
+
+  seleccionarNivel(nivel: number): void {
+    this.modalRevisor.nivelSeleccionado = nivel;
+    this.modalRevisor.modoTodos = false;
+    this.modalRevisor.seleccionado = null;
+  }
+
+  activarModoTodos(): void {
+    this.modalRevisor.modoTodos = true;
+    this.modalRevisor.seleccionado = null;
+  }
+
+  volverANiveles(): void {
+    this.modalRevisor.modoTodos = false;
+    this.modalRevisor.seleccionado = null;
+  }
+
+  seleccionarCandidato(c: any): void {
+    if (this.esYaAsignado(c.legajo)) return;
+    this.modalRevisor.seleccionado = c;
+  }
+
+  esYaAsignado(legajoJefe: string): boolean {
+    const emp = this.modalRevisor.empleado;
+    if (!emp || !emp.revisores) return false;
+    return emp.revisores.some((r: any) => r.jefe_legajo === legajoJefe);
+  }
+
+  get candidatosVisibles(): any[] {
+    const m = this.modalRevisor;
+    if (!m.candidatosTodos.length) return [];
+    let lista = m.candidatosTodos;
+    if (!m.modoTodos && m.nivelSeleccionado !== null) {
+      lista = lista.filter(c => c.nivel === m.nivelSeleccionado);
+    }
+    const q = m.busqueda.trim().toLowerCase();
+    if (q) {
+      lista = lista.filter(c =>
+        (c.nombre || '').toLowerCase().includes(q) ||
+        (c.funcion || '').toLowerCase().includes(q) ||
+        (c.familia || '').toLowerCase().includes(q) ||
+        (c.sede || '').toLowerCase().includes(q) ||
+        (c.legajo || '').includes(q)
+      );
+    }
+    return lista;
+  }
+
+  labelNivelEmpleado(): string {
+    const n = this.modalRevisor.nivelEmpleado;
+    if (n === 'OPERATIVO') return 'Operativo';
+    if (n === 0) return 'Gerente General';
+    if (n === 1) return 'Gerente';
+    if (n === 2) return 'Subgerente';
+    if (n === 3) return 'Jefatura';
+    return '';
+  }
+
+  asignarRevisorSeleccionado(): void {
+    const m = this.modalRevisor;
+    if (!m.empleado || !m.seleccionado || m.asignando) return;
+    if (this.esYaAsignado(m.seleccionado.legajo)) return;
+    m.asignando = true;
+    this.api.asignarRevisor({
+      legajo_empleado: m.empleado.legajo,
+      legajo_jefe:     m.seleccionado.legajo,
+      asignado_por:    'admin'
+    }).subscribe({
+      next: (res) => {
+        m.asignando = false;
+        if (res.ok) {
+          const emp = m.empleado;
+          this.cerrarModalRevisor();
+          emp.revisoresCargado = false;
+          this.cargarRevisores(emp);
+        } else {
+          this.errorMsg.set(res.error || 'No se pudo asignar el revisor');
+          setTimeout(() => this.errorMsg.set(''), 4000);
+        }
+      },
+      error: () => {
+        m.asignando = false;
+        this.errorMsg.set('Error de conexión');
+        setTimeout(() => this.errorMsg.set(''), 4000);
+      }
+    });
   }
 
   // Abre un link en pestaña nueva (deshabilitado en la UI si está vacío).
@@ -515,21 +732,24 @@ export class Relevamiento implements OnInit {
   }
 
   // ── Modal habilitar acceso (B2.2 + B2.3) ──────────────────────────
-  // Habilitar requiere link del borrador + teléfono válido (ya en el panel).
+  // Habilitar requiere link del borrador + teléfono válido + ≥1 revisor.
   puedeAbrirHabilitar(emp: any): boolean {
     return this.rolUsuario === 'admin'
       && !!emp.linkBorrador
-      && this.telefonoValido(emp.telefono);
+      && this.telefonoValido(emp.telefono)
+      && this.tieneRevisores(emp);
   }
 
   // Texto que explica al admin qué falta para poder habilitar.
   hintHabilitar(emp: any): string {
-    const faltaTel  = !this.telefonoValido(emp.telefono);
-    const faltaBorr = !emp.linkBorrador;
-    if (faltaTel && faltaBorr) return 'Cargá el teléfono y el link del borrador para habilitar.';
-    if (faltaTel)              return 'Cargá el teléfono para habilitar.';
-    if (faltaBorr)             return 'Cargá el link del borrador para habilitar.';
-    return '';
+    const faltantes: string[] = [];
+    if (!emp.linkBorrador)                  faltantes.push('el link del borrador');
+    if (!this.telefonoValido(emp.telefono)) faltantes.push('el teléfono');
+    if (!this.tieneRevisores(emp))          faltantes.push('al menos un revisor');
+    if (faltantes.length === 0) return '';
+    if (faltantes.length === 1) return `Cargá ${faltantes[0]} para habilitar.`;
+    if (faltantes.length === 2) return `Cargá ${faltantes[0]} y ${faltantes[1]} para habilitar.`;
+    return `Cargá ${faltantes[0]}, ${faltantes[1]} y ${faltantes[2]} para habilitar.`;
   }
 
   abrirModalHabilitar(emp: any) {

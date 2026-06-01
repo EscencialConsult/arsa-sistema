@@ -41,6 +41,37 @@ export class ApiService {
     return this.http.get(this.url, { params });
   }
 
+  // ── Sistema de revisores (bloque 3) ─────────────────────────────
+  // Lista de jefes candidatos a revisar un descriptivo.
+  //   nivel: undefined → backend default (1 nivel arriba)
+  //          '0'|'1'|'2'|'3' → ese nivel exacto
+  //          'TODOS' → toda la nómina (buscador total del modal)
+  getJefesElegibles(legajoEmpleado: string, nivel?: string | number): Observable<any> {
+    let params = new HttpParams()
+      .set('action', 'getJefesElegibles')
+      .set('legajo', legajoEmpleado);
+    if (nivel !== undefined && nivel !== null && nivel !== '') {
+      params = params.set('nivel', String(nivel));
+    }
+    return this.http.get(this.url, { params });
+  }
+
+  // Lista de revisores asignados a un descriptivo, con estado de firma.
+  getRevisoresPorDescriptivo(legajoEmpleado: string): Observable<any> {
+    const params = new HttpParams()
+      .set('action', 'getRevisoresPorDescriptivo')
+      .set('legajo', legajoEmpleado);
+    return this.http.get(this.url, { params });
+  }
+
+  asignarRevisor(payload: { legajo_empleado: string; legajo_jefe: string; asignado_por: string }): Observable<any> {
+    return this.post({ action: 'asignarRevisor', data: payload });
+  }
+
+  quitarRevisor(payload: { legajo_empleado: string; legajo_jefe: string }): Observable<any> {
+    return this.post({ action: 'quitarRevisor', data: payload });
+  }
+
   stats(): Observable<any> {
     const params = new HttpParams().set('action', 'stats');
     return this.http.get(this.url, { params });
