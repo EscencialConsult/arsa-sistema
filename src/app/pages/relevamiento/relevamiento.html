@@ -1,4 +1,63 @@
-<div class="panel">
+<!-- ═══════════════════════════════════════════════════════════════════
+     VISTA DEL JEFE — gerente solo ve los descriptivos que tiene que firmar.
+     El backend (getNominaPorJefe) ya filtra por asignación + estado REV JEFE.
+     ═══════════════════════════════════════════════════════════════════ -->
+<div class="panel" *ngIf="esGerente">
+
+  <div class="ph">
+    <div class="ph-left">
+      <div class="ph-eye">Tu revisión</div>
+      <div class="ph-title">Descriptivos para revisar</div>
+      <div class="ph-sub" *ngIf="!cargandoJefe() && nominaJefe().length > 0">
+        Tenés {{ nominaJefe().length }} descriptivo{{ nominaJefe().length === 1 ? '' : 's' }} esperando tu firma.
+      </div>
+    </div>
+    <div class="ph-right">
+      <span class="rol-badge rb-gerente">{{ labelRol }}</span>
+    </div>
+  </div>
+
+  <div *ngIf="toastJefe" class="toast-ok">{{ toastJefe }}</div>
+
+  <div *ngIf="cargandoJefe()" class="loading-wrap">
+    <div class="loading-bar"></div>
+    <span>Cargando tu lista de revisión...</span>
+  </div>
+
+  <div *ngIf="errorJefe() && !cargandoJefe()" class="estado-error">
+    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+      stroke-linecap="round" stroke-linejoin="round">
+      <circle cx="12" cy="12" r="10" />
+      <line x1="12" y1="8" x2="12" y2="12" />
+      <line x1="12" y1="16" x2="12.01" y2="16" />
+    </svg>
+    <span>{{ errorJefe() }}</span>
+    <button class="btn btn-s btn-sm" (click)="cargarNominaJefe()">Reintentar</button>
+  </div>
+
+  <div *ngIf="!cargandoJefe() && !errorJefe() && nominaJefe().length === 0" class="estado-vacio">
+    <div class="ev-ico">✓</div>
+    <div class="ev-title">No tenés descriptivos pendientes de revisión por ahora</div>
+    <div class="ev-sub">Cuando un colaborador apruebe su descriptivo, va a aparecer acá para que lo firmes.</div>
+  </div>
+
+  <div *ngIf="!cargandoJefe() && nominaJefe().length > 0" class="jefe-lista">
+    <div *ngFor="let e of nominaJefe(); trackBy: trackByLegajoJefe" class="jefe-card">
+      <div class="jefe-card-info">
+        <div class="jefe-card-nombre">{{ e.apellido_nombre }}</div>
+        <div class="jefe-card-meta">
+          <span class="jefe-card-sede">{{ e.sede }}</span>
+          <span class="jefe-card-sep">·</span>
+          <span class="jefe-card-familia">{{ e.familia }}</span>
+        </div>
+      </div>
+      <button class="btn btn-p btn-sm" (click)="abrirModalFirmar(e)">Revisar</button>
+    </div>
+  </div>
+
+</div>
+
+<div class="panel" *ngIf="!esGerente">
 
   <!-- HEADER -->
   <div class="ph">
@@ -568,5 +627,56 @@
       </button>
     </div>
 
+  </div>
+</div>
+
+<!-- MODAL FIRMAR REVISIÓN (bloque 4) ─────────────────────────────── -->
+<div class="modal-overlay" *ngIf="modalFirmar.abierto" (click)="cerrarModalFirmar()">
+  <div class="modal modal-firmar" (click)="$event.stopPropagation()">
+    <div class="modal-header">
+      <div class="modal-title">Revisar descriptivo</div>
+      <div class="modal-sub">
+        {{ modalFirmar.empleado?.apellido_nombre }}
+        <span class="firmar-meta-sub">— {{ modalFirmar.empleado?.sede }} · {{ modalFirmar.empleado?.familia }}</span>
+      </div>
+      <button class="modal-close" (click)="cerrarModalFirmar()">✕</button>
+    </div>
+
+    <div class="modal-body firmar-body">
+
+      <!-- Iframe del descriptivo (link borrador) -->
+      <div class="firmar-doc-wrap">
+        <iframe *ngIf="modalFirmar.docUrl" class="firmar-doc" [src]="modalFirmar.docUrl"></iframe>
+        <div *ngIf="!modalFirmar.docUrl" class="firmar-doc-vacio">
+          No hay link del borrador cargado para este descriptivo.
+        </div>
+      </div>
+
+      <!-- Card del comentario del colaborador -->
+      <div class="firmar-comentario-card">
+        <div class="firmar-comentario-label">Comentario del colaborador</div>
+        <div *ngIf="modalFirmar.empleado?.observacion_colab" class="firmar-comentario-text">
+          "{{ modalFirmar.empleado?.observacion_colab }}"
+        </div>
+        <div *ngIf="!modalFirmar.empleado?.observacion_colab" class="firmar-comentario-vacio">
+          El colaborador no dejó comentarios.
+        </div>
+      </div>
+
+      <!-- Textarea de la observación del jefe -->
+      <label class="modal-label">Tu observación (opcional)</label>
+      <textarea class="modal-textarea" rows="4"
+                placeholder="Anotaciones para RRHH o aclaraciones del puesto..."
+                [(ngModel)]="modalFirmar.observacion"></textarea>
+    </div>
+
+    <div class="modal-footer">
+      <button class="btn btn-s" (click)="cerrarModalFirmar()" [disabled]="modalFirmar.firmando">
+        Cancelar
+      </button>
+      <button class="btn btn-firmar" (click)="confirmarFirmar()" [disabled]="modalFirmar.firmando">
+        {{ modalFirmar.firmando ? 'Firmando...' : 'Firmar' }}
+      </button>
+    </div>
   </div>
 </div>

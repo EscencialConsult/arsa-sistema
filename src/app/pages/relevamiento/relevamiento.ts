@@ -1,6 +1,7 @@
 import { Component, OnInit, signal, computed } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
+import { DomSanitizer, SafeResourceUrl } from '@angular/platform-browser';
 import { ApiService, APP_URL } from '../../services/api';
 import {
   estadoClass as estadoClassShared,
@@ -107,6 +108,11 @@ export class Relevamiento implements OnInit {
     return labels[this.rolUsuario] || this.rolUsuario;
   }
 
+  // Vista del jefe: lista filtrada por su legajo desde el backend.
+  get esGerente(): boolean {
+    return this.rolUsuario === 'gerente';
+  }
+
   // ── UI ────────────────────────────────────────────────────────────
   filaAbierta = '';
   guardadoMsg = '';
@@ -172,10 +178,27 @@ export class Relevamiento implements OnInit {
   // Flag para evitar dobles clicks en "Guardar cambios" / "Habilitar".
   guardandoPanel = false;
 
+  // ── Vista del jefe (bloque 4) ─────────────────────────────────────
+  // Lista de descriptivos que ESTE jefe tiene que firmar. La fuente única es
+  // el backend (getNominaPorJefe): ya filtra por asignación + estado REVISIÓN JEFE.
+  nominaJefe = signal<any[]>([]);
+  cargandoJefe = signal(false);
+  errorJefe = signal('');
+  legajoJefe = '';
+  toastJefe = '';
+
+  modalFirmar: {
+    abierto: boolean;
+    empleado: any;
+    observacion: string;
+    firmando: boolean;
+    docUrl: SafeResourceUrl | null;
+  } = { abierto: false, empleado: null, observacion: '', firmando: false, docUrl: null };
+
   // ── Internos ──────────────────────────────────────────────────────
   private todosLosEmpleados: any[] = [];
 
-  constructor(private api: ApiService) { }
+  constructor(private api: ApiService, private sanitizer: DomSanitizer) { }
 
   // ─────────────────────────────────────────────────────────────────
   ngOnInit() {
@@ -183,6 +206,12 @@ export class Relevamiento implements OnInit {
     if (raw) {
       const u = JSON.parse(raw);
       this.rolUsuario = (u.rol || '').toLowerCase();
+      this.legajoJefe = String(u.legajo || '').trim();
+    }
+    if (this.rolUsuario === 'gerente') {
+      // El jefe ve SU lista de revisión. No carga la nómina completa ni las stats.
+      this.cargarNominaJefe();
+      return;
     }
     if (this.rolUsuario === 'rrhh') {
       this.filtroEstado = 'PRESENTADO A RRHH';
@@ -667,6 +696,96 @@ export class Relevamiento implements OnInit {
     if (!url) return;
     window.open(url, '_blank', 'noopener,noreferrer');
   }
+
+  // ── Vista del jefe (bloque 4) ─────────────────────────────────────
+  cargarNominaJefe(): void {
+    if (!this.legajoJefe) {
+      this.errorJefe.set('No pudimos identificar tu legajo. Cerrá sesión y volvé a entrar.');
+      return;
+    }
+    this.cargandoJefe.set(true);
+    this.errorJefe.set('');
+    this.api.getNominaPorJefe(this.legajoJefe).subscribe({
+      next: (res) => {
+        if (res.ok) {
+          this.nominaJefe.set(res.data || []);
+        } else {
+          this.errorJefe.set(res.error || 'No se pudo cargar tu lista de revisión');
+          this.nominaJefe.set([]);
+        }
+        this.cargandoJefe.set(false);
+      },
+      error: () => {
+        this.errorJefe.set('No se pudo conectar con el servidor');
+        this.cargandoJefe.set(false);
+      }
+    });
+  }
+
+  abrirModalFirmar(emp: any): void {
+    this.modalFirmar = {
+      abierto: true,
+      empleado: emp,
+      observacion: '',
+      firmando: false,
+      docUrl: this.armarDocUrl(emp.linkBorrador),
+    };
+  }
+
+  cerrarModalFirmar(): void {
+    this.modalFirmar = { abierto: false, empleado: null, observacion: '', firmando: false, docUrl: null };
+  }
+
+  confirmarFirmar(): void {
+    const m = this.modalFirmar;
+    if (!m.empleado || m.firmando) return;
+    m.firmando = true;
+    this.api.firmarRevision({
+      legajo_empleado: m.empleado.legajo,
+      legajo_jefe:     this.legajoJefe,
+      observacion:     m.observacion.trim(),
+      rol:             'gerente'
+    }).subscribe({
+      next: (res) => {
+        m.firmando = false;
+        if (res.ok) {
+          const leg = m.empleado.legajo;
+          this.nominaJefe.update(l => l.filter(e => e.legajo !== leg));
+          if (res.avanzoEstado) {
+            this.toastJefe = 'Firmado. El descriptivo pasó a RRHH.';
+          } else if (res.pendientes > 0) {
+            const n = res.pendientes;
+            this.toastJefe = `Firmado. Falta${n === 1 ? '' : 'n'} ${n} revisor${n === 1 ? '' : 'es'}.`;
+          } else {
+            this.toastJefe = 'Firmado.';
+          }
+          setTimeout(() => this.toastJefe = '', 4000);
+          this.cerrarModalFirmar();
+        } else {
+          this.errorJefe.set(res.error || 'No se pudo firmar la revisión');
+          setTimeout(() => this.errorJefe.set(''), 4000);
+        }
+      },
+      error: () => {
+        m.firmando = false;
+        this.errorJefe.set('Error de conexión al firmar');
+        setTimeout(() => this.errorJefe.set(''), 4000);
+      }
+    });
+  }
+
+  // Transforma el link del borrador en una URL embebible.
+  //   · Mobile (< 768px) → /mobilebasic (texto fluido)
+  //   · Desktop (≥ 768px) → /preview (formato original)
+  private armarDocUrl(link: string): SafeResourceUrl | null {
+    if (!link) return null;
+    const base = link.replace(/\/(edit|preview|view|mobilebasic)\b.*$/, '').replace(/[?#].*$/, '');
+    const isMobile = typeof window !== 'undefined' && window.innerWidth < 768;
+    const url = `${base}/${isMobile ? 'mobilebasic' : 'preview'}`;
+    return this.sanitizer.bypassSecurityTrustResourceUrl(url);
+  }
+
+  trackByLegajoJefe(_: number, e: any): string { return e.legajo; }
 
   // ── Guardar todo el panel ─────────────────────────────────────────
   // Persiste links + telefono + privados en una sola llamada a updateEntrevista.

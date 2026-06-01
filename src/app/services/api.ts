@@ -72,6 +72,20 @@ export class ApiService {
     return this.post({ action: 'quitarRevisor', data: payload });
   }
 
+  // ── Vista del jefe (bloque 4) ──────────────────────────────────
+  // Devuelve los descriptivos asignados a este jefe que están en estado REVISIÓN JEFE.
+  // El filtro lo aplica el backend — el frontend NO debe inferir nada.
+  getNominaPorJefe(legajoJefe: string): Observable<any> {
+    const params = new HttpParams()
+      .set('action', 'getNominaPorJefe')
+      .set('legajo_jefe', legajoJefe);
+    return this.http.get(this.url, { params });
+  }
+
+  firmarRevision(payload: { legajo_empleado: string; legajo_jefe: string; observacion: string; rol: string }): Observable<any> {
+    return this.post({ action: 'firmarRevision', data: payload });
+  }
+
   stats(): Observable<any> {
     const params = new HttpParams().set('action', 'stats');
     return this.http.get(this.url, { params });
