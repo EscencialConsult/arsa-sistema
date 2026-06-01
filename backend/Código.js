@@ -24,6 +24,22 @@ const DATA_ROW   = 2;
 const TAB_USUARIOS       = 'Usuarios';
 const TAB_DESCRIPTIVOS   = 'Descriptivos';
 const TAB_PROCEDIMIENTOS = 'NOMENCLADOR DE PROCESOS — ARSA';
+const TAB_REVISIONES     = 'Revisiones';
+
+// Índices de columna (0-based) de la hoja Revisiones.
+// Una fila por par (empleado, jefe). Crear con backend/_setup_revisiones.js.
+const COL_REV = {
+  LEGAJO_EMPLEADO:   0,   // A
+  JEFE_LEGAJO:       1,   // B
+  JEFE_NOMBRE:       2,   // C — "APELLIDO, Nombre" denormalizado para display
+  ASIGNADO_POR:      3,   // D
+  FECHA_ASIGNACION:  4,   // E
+  FIRMADO:           5,   // F — "SI" / ""
+  FECHA_FIRMA:       6,   // G
+  OBSERVACION:       7    // H
+};
+const REV_HEADER_ROW = 1;
+const REV_DATA_ROW   = 2;
 
 // Índices de columna (base 0 = columna A)
 const COL = {
@@ -57,6 +73,26 @@ const COL = {
   OBS_COLAB:    33,   // AH - observación que deja el empleado al revisar (Parte 3)
   FECHA_COLAB:  34,   // AI - fecha de confirmación del empleado (Parte 3)
 };
+
+// Calcula el nivel jerárquico a partir de FAMILIA + FUNCIÓN (cols K + J).
+//   "Jefatura de Servicio" → 3 (cualquier función)
+//   "Gerencia / Subgerencia":
+//     "GERENTE GRAL." → 0
+//     "GERENTE"       → 1
+//     "SUBGERENTE" / "A/C SUBGERENCIA" → 2
+//   cualquier otra familia → "OPERATIVO"
+// La familia manda: corrige errores de función mal cargada.
+function calcularNivel(familia, funcion) {
+  const fam = String(familia || '').trim();
+  const fn  = String(funcion || '').trim().toUpperCase();
+  if (fam === 'Jefatura de Servicio') return 3;
+  if (fam === 'Gerencia / Subgerencia') {
+    if (fn === 'GERENTE GRAL.') return 0;
+    if (fn === 'GERENTE')        return 1;
+    if (fn === 'SUBGERENTE' || fn === 'A/C SUBGERENCIA') return 2;
+  }
+  return 'OPERATIVO';
+}
 
 // Flujo de aprobación v2 — cadena secuencial colaborador → jefe → RRHH.
 // OBSERVADO y FUERA DE FLUJO viven fuera de la cadena (orden -1).
