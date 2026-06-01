@@ -540,6 +540,19 @@ export class Relevamiento implements OnInit {
         if (res.ok) {
           emp.revisoresCargado = false;
           this.cargarRevisores(emp);
+          // Si el backend disparó auto-advance (estado pasó a PRESENTADO A RRHH
+          // porque los revisores restantes ya habían firmado todos), reflejarlo
+          // en la fila local + stats + mensaje en la franja superior.
+          if (res.avanzoEstado) {
+            emp.estado = res.estadoNuevo;
+            this.todosLosEmpleados = this.todosLosEmpleados.map(e =>
+              e.legajo === emp.legajo ? { ...e, estado: res.estadoNuevo } : e
+            );
+            this.empleados.update(l => l.slice());
+            this.cargarStats();
+            this.errorMsg.set('Revisor quitado. Como los otros ya firmaron, el descriptivo pasó a RRHH.');
+            setTimeout(() => this.errorMsg.set(''), 5000);
+          }
         } else {
           this.errorMsg.set(res.error || 'No se pudo quitar el revisor');
           setTimeout(() => this.errorMsg.set(''), 4000);

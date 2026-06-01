@@ -745,8 +745,15 @@ function asignarRevisor(data) {
 
 // Quita un revisor del descriptivo del empleado.
 //   · Error si ese revisor ya firmó.
+//   · Error si dejaría el descriptivo huérfano: estado REVISIÓN JEFE + ningún
+//     otro revisor cargado. El admin tiene que asignar reemplazo antes.
 //   · Borra fila de Revisiones + limpia col AB del empleado.
-//   · Si al jefe no le quedan más revisiones asignadas → vuelve a 'empleado'.
+//   · Si después del quit el empleado estaba en REVISIÓN JEFE y todos los
+//     revisores restantes ya firmaron → avanza estado a PRESENTADO A RRHH.
+//     (Avance que normalmente dispara firmarRevision; sin esto el quit del
+//     único pendiente dejaría el descriptivo trabado.)
+//   · Si al jefe no le quedan más revisiones asignadas → degrada rol si
+//     corresponde (gerentes natos quedan intactos).
 function quitarRevisor(data) {
   if (!data) return { ok: false, error: 'Falta data' };
   const legajoEmp  = str(data.legajo_empleado);
@@ -779,27 +786,78 @@ function quitarRevisor(data) {
     return { ok: false, error: 'No se puede quitar: ya firmó' };
   }
 
-  // 3) Borrar la fila
-  revisiones.deleteRow(REV_DATA_ROW + rowIdx);
-
-  // 4) Recomputar col AB del empleado con los revisores que QUEDAN en Revisiones.
-  // Si quedan 0, AB queda vacío. Si quedan otros, AB sigue mostrándolos.
-  _actualizarABRevisores(nomenclador, revisiones, legajoEmp);
-
-  // 5) Contar cuántas filas le quedan al jefe (re-leer después del delete)
-  let quedanAlJefe = 0;
-  const revLastRowAfter = revisiones.getLastRow();
-  if (revLastRowAfter >= REV_DATA_ROW) {
-    const revDatosAfter = revisiones.getRange(REV_DATA_ROW, 1, revLastRowAfter - REV_DATA_ROW + 1, 8).getValues();
-    for (let i = 0; i < revDatosAfter.length; i++) {
-      if (str(revDatosAfter[i][COL_REV.JEFE_LEGAJO]) === legajoJefe) quedanAlJefe++;
+  // 3) Leer estado del empleado del nomenclador (usado para el bloqueo de
+  //    huérfanos y para el auto-advance post-delete).
+  const datosNom = nomenclador.getDataRange().getValues();
+  let rowEmpleadoNom = -1;
+  let estadoEmp = '';
+  for (let i = FILA_INICIO - 1; i < datosNom.length; i++) {
+    if (str(datosNom[i][COL.LEGAJO]) === legajoEmp) {
+      rowEmpleadoNom = i;
+      estadoEmp = normalizarEstado(datosNom[i][COL.ESTADO]);
+      break;
     }
   }
 
-  // 6) Si quedan 0, intentar degradar SOLO si fue promoción del sistema.
-  //    El helper respeta a gerentes natos (flag promovido_por_sistema vacío) y
-  //    deja su rol intacto. Si fue promoción del sistema (flag = SI), degrada
-  //    y limpia el flag.
+  // 4) ANTI-HUÉRFANO: si estado=REV JEFE y este sería el último revisor,
+  //    bloquear. Quedaría sin nadie autorizado a firmar → trabado para siempre.
+  if (estadoEmp === 'REVISIÓN JEFE') {
+    let totalEmpAntes = 0;
+    for (let i = 0; i < revDatos.length; i++) {
+      if (str(revDatos[i][COL_REV.LEGAJO_EMPLEADO]) === legajoEmp) totalEmpAntes++;
+    }
+    if (totalEmpAntes <= 1) {
+      return {
+        ok: false,
+        error: 'Este descriptivo está esperando firma. Antes de quitar a ' +
+               str(revDatos[rowIdx][COL_REV.JEFE_NOMBRE]) +
+               ', asigná otro revisor que tome el lugar.'
+      };
+    }
+  }
+
+  // 5) Borrar la fila
+  revisiones.deleteRow(REV_DATA_ROW + rowIdx);
+
+  // 6) Recomputar col AB del empleado con los revisores que QUEDAN en Revisiones.
+  // Si quedan 0, AB queda vacío. Si quedan otros, AB sigue mostrándolos.
+  _actualizarABRevisores(nomenclador, revisiones, legajoEmp);
+
+  // 7) Re-leer Revisiones después del delete (usado por quedanAlJefe + auto-advance)
+  let revDatosAfter = [];
+  const revLastRowAfter = revisiones.getLastRow();
+  if (revLastRowAfter >= REV_DATA_ROW) {
+    revDatosAfter = revisiones.getRange(REV_DATA_ROW, 1, revLastRowAfter - REV_DATA_ROW + 1, 8).getValues();
+  }
+
+  // 8) Contar cuántas revisiones le quedan al JEFE
+  let quedanAlJefe = 0;
+  for (let i = 0; i < revDatosAfter.length; i++) {
+    if (str(revDatosAfter[i][COL_REV.JEFE_LEGAJO]) === legajoJefe) quedanAlJefe++;
+  }
+
+  // 9) AUTO-ADVANCE: si estado=REV JEFE y al empleado le quedan revisores y
+  //    todos ya firmaron → escribir PRESENTADO A RRHH. Análogo al avance
+  //    automático que dispara firmarRevision cuando el último pendiente firma.
+  let avanzoEstado = false;
+  let estadoNuevo  = '';
+  if (estadoEmp === 'REVISIÓN JEFE' && rowEmpleadoNom >= 0) {
+    let totalEmp = 0, pendientesEmp = 0;
+    for (let i = 0; i < revDatosAfter.length; i++) {
+      if (str(revDatosAfter[i][COL_REV.LEGAJO_EMPLEADO]) !== legajoEmp) continue;
+      totalEmp++;
+      if (str(revDatosAfter[i][COL_REV.FIRMADO]).toUpperCase() !== 'SI') pendientesEmp++;
+    }
+    if (totalEmp > 0 && pendientesEmp === 0) {
+      nomenclador.getRange(rowEmpleadoNom + 1, COL.ESTADO + 1).setValue('PRESENTADO A RRHH');
+      avanzoEstado = true;
+      estadoNuevo  = 'PRESENTADO A RRHH';
+    }
+  }
+
+  // 10) Si quedan 0 revisiones al jefe, degradar SOLO si fue promoción del
+  //     sistema. El helper respeta a gerentes natos (flag vacío) y deja su rol
+  //     intacto. Si fue promoción del sistema (flag = SI), degrada y limpia.
   let rolRevertido = false;
   if (quedanAlJefe === 0) {
     rolRevertido = _degradarJefeSiCorresponde(usuarios, legajoJefe);
@@ -810,7 +868,9 @@ function quitarRevisor(data) {
     legajo_empleado: legajoEmp,
     legajo_jefe: legajoJefe,
     quedanAlJefe: quedanAlJefe,
-    rolRevertido: rolRevertido
+    rolRevertido: rolRevertido,
+    avanzoEstado: avanzoEstado,
+    estadoNuevo: estadoNuevo
   };
 }
 
