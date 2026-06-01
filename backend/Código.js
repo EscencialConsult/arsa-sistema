@@ -728,8 +728,10 @@ function asignarRevisor(data) {
   // (NO sobrescribimos directo: si ya había otros revisores, los preservamos.)
   _actualizarABRevisores(nomenclador, revisiones, legajoEmp);
 
-  // 5) Promover rol del jefe a 'gerente' si era 'empleado'
-  const rolCambio = _setRolUsuario(usuarios, legajoJefe, 'empleado', 'gerente');
+  // 5) Promover rol del jefe a 'gerente' SI era 'empleado'.
+  //    El helper marca el flag `promovido_por_sistema = SI` para que un
+  //    futuro quitarRevisor sepa distinguir esta promoción de un gerente nato.
+  const rolCambio = _promoverJefe(usuarios, legajoJefe);
 
   return {
     ok: true,
@@ -794,10 +796,13 @@ function quitarRevisor(data) {
     }
   }
 
-  // 6) Si quedan 0, revertir rol a 'empleado'
+  // 6) Si quedan 0, intentar degradar SOLO si fue promoción del sistema.
+  //    El helper respeta a gerentes natos (flag promovido_por_sistema vacío) y
+  //    deja su rol intacto. Si fue promoción del sistema (flag = SI), degrada
+  //    y limpia el flag.
   let rolRevertido = false;
   if (quedanAlJefe === 0) {
-    rolRevertido = _setRolUsuario(usuarios, legajoJefe, 'gerente', 'empleado');
+    rolRevertido = _degradarJefeSiCorresponde(usuarios, legajoJefe);
   }
 
   return {
@@ -1021,27 +1026,85 @@ function _actualizarABRevisores(nomencladorSheet, revisionesSheet, legajoEmplead
 }
 
 
-// Helper privado: cambia el rol de un usuario en la hoja Usuarios solo si su
-// rol actual matchea `rolEsperado`. Devuelve true si efectivamente cambió.
-function _setRolUsuario(usuariosSheet, legajo, rolEsperado, rolNuevo) {
+// Asegura que la hoja Usuarios tenga la columna `promovido_por_sistema`.
+// Si no existe, la crea como última columna con el header. Idempotente.
+// Returns el índice 1-based de la columna, o -1 si la hoja no es válida.
+//
+// La columna distingue entre dos tipos de gerentes en la hoja Usuarios:
+//   · `SI`     → la promoción a 'gerente' la hizo el sistema (asignarRevisor).
+//                Si después le sacan la última asignación, el sistema lo baja.
+//   · vacío   → gerente nato (rol cargado por admin/RRHH). El sistema NO toca.
+function _asegurarColumnaPromocion(usuariosSheet) {
+  if (!usuariosSheet) return -1;
+  const lastCol = usuariosSheet.getLastColumn();
+  const headers = usuariosSheet.getRange(1, 1, 1, lastCol).getValues()[0];
+  const idx = headers.indexOf('promovido_por_sistema');
+  if (idx >= 0) return idx + 1;
+  const nuevaCol = lastCol + 1;
+  usuariosSheet.getRange(1, nuevaCol).setValue('promovido_por_sistema');
+  return nuevaCol;
+}
+
+// Promueve a un jefe de 'empleado' a 'gerente' y marca el flag
+// `promovido_por_sistema = SI`. Si el rol actual NO es 'empleado'
+// (ya era gerente nato, admin, rrhh, etc.), no toca nada.
+// Returns true solo si efectivamente promovió.
+function _promoverJefe(usuariosSheet, legajo) {
   if (!usuariosSheet) return false;
   const lastRow = usuariosSheet.getLastRow();
   if (lastRow < 2) return false;
-  const headers = usuariosSheet.getRange(1, 1, 1, usuariosSheet.getLastColumn()).getValues()[0];
+
+  // PRIMERO asegurar la columna del flag — puede agregar una columna nueva.
+  const colFlag = _asegurarColumnaPromocion(usuariosSheet);
+  if (colFlag < 0) return false;
+
+  const lastCol = usuariosSheet.getLastColumn();
+  const headers = usuariosSheet.getRange(1, 1, 1, lastCol).getValues()[0];
   const colLegajo = headers.indexOf('legajo');
   const colRol    = headers.indexOf('rol');
   if (colLegajo < 0 || colRol < 0) return false;
 
-  const datos = usuariosSheet.getRange(2, 1, lastRow - 1, usuariosSheet.getLastColumn()).getValues();
+  const datos = usuariosSheet.getRange(2, 1, lastRow - 1, lastCol).getValues();
   for (let i = 0; i < datos.length; i++) {
-    if (str(datos[i][colLegajo]) === str(legajo)) {
-      const rolActual = String(datos[i][colRol] || '').trim().toLowerCase();
-      if (rolActual === rolEsperado) {
-        usuariosSheet.getRange(2 + i, colRol + 1).setValue(rolNuevo);
-        return true;
-      }
-      return false;
-    }
+    if (str(datos[i][colLegajo]) !== str(legajo)) continue;
+    const rolActual = String(datos[i][colRol] || '').trim().toLowerCase();
+    if (rolActual !== 'empleado') return false;   // ya era gerente nato, admin, rrhh, etc.
+    usuariosSheet.getRange(2 + i, colRol + 1).setValue('gerente');
+    usuariosSheet.getRange(2 + i, colFlag).setValue('SI');
+    return true;
+  }
+  return false;
+}
+
+// Degrada a 'empleado' SOLO si el rol actual es 'gerente' Y el flag
+// `promovido_por_sistema` está en 'SI'. Para gerentes natos (flag vacío),
+// no toca nada — su rol fue cargado manualmente y el sistema lo respeta.
+// Al degradar, limpia el flag para mantener coherencia.
+// Returns true solo si efectivamente degradó.
+function _degradarJefeSiCorresponde(usuariosSheet, legajo) {
+  if (!usuariosSheet) return false;
+  const lastRow = usuariosSheet.getLastRow();
+  if (lastRow < 2) return false;
+
+  const colFlag = _asegurarColumnaPromocion(usuariosSheet);
+  if (colFlag < 0) return false;
+
+  const lastCol = usuariosSheet.getLastColumn();
+  const headers = usuariosSheet.getRange(1, 1, 1, lastCol).getValues()[0];
+  const colLegajo = headers.indexOf('legajo');
+  const colRol    = headers.indexOf('rol');
+  if (colLegajo < 0 || colRol < 0) return false;
+
+  const datos = usuariosSheet.getRange(2, 1, lastRow - 1, lastCol).getValues();
+  for (let i = 0; i < datos.length; i++) {
+    if (str(datos[i][colLegajo]) !== str(legajo)) continue;
+    const rolActual = String(datos[i][colRol] || '').trim().toLowerCase();
+    const flag      = String(datos[i][colFlag - 1] || '').trim().toUpperCase();
+    if (rolActual !== 'gerente') return false;    // ya no es gerente, nada que degradar
+    if (flag !== 'SI')           return false;    // gerente nato → respetar
+    usuariosSheet.getRange(2 + i, colRol + 1).setValue('empleado');
+    usuariosSheet.getRange(2 + i, colFlag).setValue('');   // limpiar flag
+    return true;
   }
   return false;
 }
