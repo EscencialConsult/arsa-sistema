@@ -8,6 +8,18 @@
   border-bottom: 1px solid rgba(255,255,255,.06);
 }
 
+/* Botón hamburguesa — oculto en desktop; aparece a ≤900px */
+.tb-hamburger {
+  display: none;
+  background: none; border: 0; cursor: pointer;
+  color: rgba(255,255,255,.85);
+  padding: 6px; margin-right: -4px;
+  border-radius: 6px;
+  align-items: center; justify-content: center;
+  transition: background .15s, color .15s;
+}
+.tb-hamburger:hover { background: rgba(255,255,255,.08); color: #fff; }
+
 .tb-logo { display: flex; align-items: center; }
 .tb-logo-img { height: 30px; filter: brightness(0) invert(1); }
 
@@ -105,7 +117,52 @@
 }
 
 /* ── MAIN ── */
-.main { flex: 1; overflow-x: hidden; background: #F4F8FB; }
+/* overflow-x sacado a propósito — preparado para que pantallas internas
+   (Nómina, Relevamiento, etc.) puedan tener su propio scroll horizontal. */
+.main { flex: 1; background: #F4F8FB; min-width: 0; }
+
+/* ── OVERLAY DEL DRAWER (solo móvil) ── */
+.sidebar-overlay {
+  display: none;
+  position: fixed; inset: 52px 0 0 0;
+  background: rgba(10,46,74,.5);
+  z-index: 90;
+  opacity: 0; pointer-events: none;
+  transition: opacity .25s ease;
+}
+.sidebar-overlay.show { opacity: 1; pointer-events: auto; }
+
+/* ── RESPONSIVE ≤ 900px ── */
+@media (max-width: 900px) {
+  .tb-hamburger { display: inline-flex; }
+
+  /* Subtítulo + divisor ocupan demasiado en pantalla angosta */
+  .tb-subtitle,
+  .tb-divider { display: none; }
+
+  .topbar { padding: 0 14px; gap: 10px; }
+  .tb-right { gap: 8px; }
+  .tb-user { display: none; }   /* avatar + Salir alcanzan; nombre queda en la sidebar abierta si hace falta */
+  .tb-exit { padding: 5px 10px; }
+
+  .sidebar-overlay { display: block; }
+
+  /* Sidebar pasa a drawer deslizable */
+  .sidebar {
+    position: fixed; top: 52px; left: 0;
+    width: min(75vw, 220px);
+    height: calc(100vh - 52px);
+    z-index: 95;
+    transform: translateX(-100%);
+    transition: transform .25s ease;
+    box-shadow: 4px 0 16px rgba(0,0,0,.18);
+  }
+  .sidebar.sidebar-abierta { transform: translateX(0); }
+
+  /* Main toma todo el ancho — la sidebar ya no le come 200px */
+  .layout { padding-top: 52px; }
+  .main { width: 100%; }
+}
 
 /* ── NOTIF ── */
 .notif {

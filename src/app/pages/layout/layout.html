@@ -2,6 +2,22 @@
 
   <!-- TOPBAR -->
   <nav class="topbar">
+    <button class="tb-hamburger"
+            (click)="toggleMenu()"
+            [attr.aria-label]="menuAbierto ? 'Cerrar menú' : 'Abrir menú'"
+            [attr.aria-expanded]="menuAbierto">
+      <svg *ngIf="!menuAbierto" width="22" height="22" viewBox="0 0 24 24" fill="none"
+           stroke="currentColor" stroke-width="2" stroke-linecap="round">
+        <line x1="3" y1="6"  x2="21" y2="6"/>
+        <line x1="3" y1="12" x2="21" y2="12"/>
+        <line x1="3" y1="18" x2="21" y2="18"/>
+      </svg>
+      <svg *ngIf="menuAbierto" width="22" height="22" viewBox="0 0 24 24" fill="none"
+           stroke="currentColor" stroke-width="2" stroke-linecap="round">
+        <line x1="6" y1="6"  x2="18" y2="18"/>
+        <line x1="18" y1="6" x2="6"  y2="18"/>
+      </svg>
+    </button>
     <div class="tb-logo">
       <img src="https://aguasrionegrinas.com/wp-content/uploads/2018/05/logo.png"
            alt="Aguas Rionegrinas" class="tb-logo-img">
@@ -15,11 +31,16 @@
     </div>
   </nav>
 
+  <!-- OVERLAY DEL DRAWER (solo móvil; CSS lo oculta en desktop) -->
+  <div class="sidebar-overlay"
+       [class.show]="menuAbierto"
+       (click)="cerrarMenu()"></div>
+
   <!-- LAYOUT -->
   <div class="layout">
 
     <!-- SIDEBAR -->
-    <aside class="sidebar">
+    <aside class="sidebar" [class.sidebar-abierta]="menuAbierto">
       <div *ngFor="let seccion of seccionesMenu">
         <div class="sb-section">{{ seccion.nombre }}</div>
 

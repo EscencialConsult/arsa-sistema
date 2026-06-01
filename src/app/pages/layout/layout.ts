@@ -18,6 +18,9 @@ export class LayoutComponent implements OnInit {
   notifVisible = false;
   notifMsg = '';
   modalSalir = false;
+  // Drawer móvil — cerrado por defecto. En desktop la sidebar es siempre
+  // visible y este flag se ignora vía CSS (display: none del overlay).
+  menuAbierto = false;
 
   menuAdmin = [
     {
@@ -133,9 +136,13 @@ export class LayoutComponent implements OnInit {
   navegar(item: any) {
     if (item.bloqueado || !item.ruta) return;
     this.router.navigate([item.ruta]);
+    this.cerrarMenu();
   }
 
-  pedirSalir()   { this.modalSalir = true; }
+  toggleMenu() { this.menuAbierto = !this.menuAbierto; }
+  cerrarMenu() { this.menuAbierto = false; }
+
+  pedirSalir()   { this.modalSalir = true; this.cerrarMenu(); }
   cancelarSalir() { this.modalSalir = false; }
 
   salir() {
