@@ -78,6 +78,12 @@ export class LayoutComponent implements OnInit {
 
   menuGerente = [
     {
+      nombre: 'Mi Puesto',
+      items: [
+        { label: 'Mi descriptivo', ruta: '/mi-descriptivo', bloqueado: false, icon: 'descriptivos' }
+      ]
+    },
+    {
       nombre: 'General',
       items: [
         { label: 'Dashboard', ruta: '/dashboard', bloqueado: false, icon: 'dashboard' }

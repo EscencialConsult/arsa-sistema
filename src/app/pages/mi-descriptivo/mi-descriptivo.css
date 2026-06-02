@@ -99,6 +99,33 @@
   background: rgba(255, 255, 255, 0.25);
 }
 
+/* Botón "Volver al panel" — solo visible cuando el rol logueado es gerente.
+   Misma forma que md-btn-salir pero más tenue para que no compita visualmente
+   con "Salir" (la acción primaria del header sigue siendo salir). */
+.md-btn-volver {
+  background: transparent;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  color: rgba(255, 255, 255, 0.85);
+  font-size: 12px;
+  font-weight: 500;
+  padding: 6px 14px;
+  border-radius: 20px;
+  cursor: pointer;
+  white-space: nowrap;
+  margin-right: 6px;
+  transition: background .15s, color .15s, border-color .15s;
+}
+
+.md-btn-volver:hover {
+  background: rgba(255, 255, 255, 0.12);
+  color: #fff;
+  border-color: rgba(255, 255, 255, 0.35);
+}
+
+@media (max-width: 480px) {
+  .md-btn-volver { padding: 6px 10px; font-size: 11px; }
+}
+
 @media (min-width: 768px) {
   .md-header {
     margin: 0 0 16px;

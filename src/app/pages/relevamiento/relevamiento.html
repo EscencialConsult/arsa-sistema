@@ -125,7 +125,7 @@
   <div class="tbl-toolbar">
     <div class="search-wrap">
       <input class="tbl-search" type="text" placeholder="Buscar por nombre o legajo..." [(ngModel)]="busqueda"
-        (keydown.enter)="buscar()" />
+        (ngModelChange)="buscar()" (keydown.enter)="buscar()" />
       <button class="btn-lupa" (click)="buscar()" title="Buscar">
         <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none"
           stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
@@ -188,25 +188,6 @@
       <button class="chip-x" (click)="quitarEstado()" aria-label="Quitar estado">✕</button>
     </span>
     <button class="chip-clear" (click)="limpiarFiltros()">Limpiar todo</button>
-  </div>
-
-  <!-- AVISO -->
-  <div class="aviso-regla" *ngIf="puedeEditar">
-    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
-      stroke-linecap="round" stroke-linejoin="round">
-      <circle cx="12" cy="12" r="10" />
-      <line x1="12" y1="8" x2="12" y2="12" />
-      <line x1="12" y1="16" x2="12.01" y2="16" />
-    </svg>
-    Para marcar como <strong>Presentado a RRHH</strong> el perfil debe tener el link definitivo cargado.
-    RRHH después revisa y decide sellarlo o devolverlo con comentarios.
-  </div>
-
-  <!-- SIN BÚSQUEDA -->
-  <div *ngIf="!hayFiltro && !cargando()" class="estado-vacio">
-    <div class="ev-ico">◎</div>
-    <div class="ev-title">Seleccioná un filtro para comenzar</div>
-    <div class="ev-sub">Buscá por nombre, legajo, sede, familia o estado de avance</div>
   </div>
 
   <!-- CARGANDO -->

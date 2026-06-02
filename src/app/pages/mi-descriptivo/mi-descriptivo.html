@@ -7,6 +7,11 @@
       <div class="md-greeting">Hola, {{ nombreCorto || '...' }}</div>
       <div class="md-greeting-sub">Aguas Rionegrinas</div>
     </div>
+    <!-- "Volver al panel": solo si el usuario logueado es gerente. Para empleado,
+         admin, rrhh o cualquier otro valor el botón NO se renderea. -->
+    <button *ngIf="esGerente" class="md-btn-volver" (click)="volverAlPanel()">
+      ← Volver al panel
+    </button>
     <button class="md-btn-salir" (click)="pedirSalir()">Salir</button>
   </header>
 

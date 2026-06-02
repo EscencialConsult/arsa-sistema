@@ -206,4 +206,24 @@ export class MiDescriptivo implements OnInit {
     localStorage.clear();
     this.router.navigate(['/login']);
   }
+
+  // ── Volver al panel (solo gerente) ────────────────────────────────
+  // Detección robusta del rol guardado: parsea localStorage con try/catch,
+  // normaliza a lowercase y compara exacto contra 'gerente'. Para cualquier
+  // otro valor (incluido empleado, admin, rrhh, undefined, JSON inválido,
+  // localStorage vacío) devuelve false → el botón NO se renderea.
+  get esGerente(): boolean {
+    try {
+      const raw = localStorage.getItem('usuario');
+      if (!raw) return false;
+      const u = JSON.parse(raw);
+      return String(u?.rol || '').trim().toLowerCase() === 'gerente';
+    } catch {
+      return false;
+    }
+  }
+
+  volverAlPanel(): void {
+    this.router.navigate(['/relevamiento']);
+  }
 }

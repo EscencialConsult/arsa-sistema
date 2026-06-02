@@ -213,10 +213,15 @@ export class Relevamiento implements OnInit {
       this.cargarNominaJefe();
       return;
     }
+    // Pre-set útil para rrhh: arrancar filtrando por su flujo. Si después
+    // borra el filtro, ve la nómina completa como cualquier admin.
     if (this.rolUsuario === 'rrhh') {
       this.filtroEstado = 'PRESENTADO A RRHH';
-      this.buscar();
     }
+    // Carga inicial para admin y rrhh — arrancar con la nómina visible.
+    // Antes solo rrhh disparaba buscar() (gracias al pre-set); admin se quedaba
+    // con la pantalla vacía esperando que el usuario tipeara o eligiera dropdown.
+    this.buscar();
     this.cargarStats();
   }
 
@@ -313,20 +318,22 @@ export class Relevamiento implements OnInit {
   }
 
   // ── Búsqueda — lee Nomina y filtra localmente ─────────────────────
+  // Sin filtros arranca cargando los 860 y muestra todo. Cualquier dropdown
+  // o búsqueda restringe sobre la lista ya en memoria — el fetch a Sheets
+  // se hace una sola vez por sesión.
   buscar(): void {
-    if (!this.hayFiltro) { this.empleados.set([]); return; }
-
-    this.cargando.set(true);
     this.errorMsg.set('');
 
-    // Si ya tenemos datos cargados, solo filtrar
+    // Datos ya cacheados → filtrar instantáneo y silencioso.
+    // NO tocamos `cargando` para no prender el spinner en cada keystroke del
+    // live-search; el fetch real de abajo es el único que muestra "Cargando".
     if (this.todosLosEmpleados.length > 0) {
       this.aplicarFiltros();
-      this.cargando.set(false);
       return;
     }
 
     // Primera carga: leer la hoja Nomina
+    this.cargando.set(true);
     this.api.leerTabla('Nomina').subscribe({
       next: (res) => {
         if (res.ok) {
