@@ -968,6 +968,68 @@ function getNominaPorJefe(legajoJefe) {
 }
 
 
+// Historial del jefe: descriptivos donde firmó (firmado=SI).
+// Análogo a getNominaPorJefe pero invierte el filtro: en vez de pendientes,
+// devuelve los aprobados, con la fecha de firma para mostrar en la UI.
+function getDescriptivosFirmadosPorJefe(legajoJefe) {
+  if (!legajoJefe) return { ok: false, error: 'Falta legajo_jefe' };
+
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const revisiones  = ss.getSheetByName(TAB_REVISIONES);
+  const nomenclador = ss.getSheetByName(HOJA);
+  if (!revisiones) return { ok: false, error: 'No existe la hoja Revisiones' };
+
+  const revLastRow = revisiones.getLastRow();
+  if (revLastRow < REV_DATA_ROW) return { ok: true, data: [] };
+
+  // 1) Recolectar empleados firmados por este jefe (con fecha de firma)
+  const revDatos = revisiones.getRange(REV_DATA_ROW, 1, revLastRow - REV_DATA_ROW + 1, 8).getValues();
+  const firmados = {};
+  for (let i = 0; i < revDatos.length; i++) {
+    if (str(revDatos[i][COL_REV.JEFE_LEGAJO]) !== str(legajoJefe)) continue;
+    if (str(revDatos[i][COL_REV.FIRMADO]).toUpperCase() !== 'SI') continue;
+    const legEmp = str(revDatos[i][COL_REV.LEGAJO_EMPLEADO]);
+    firmados[legEmp] = {
+      fecha_firma: revDatos[i][COL_REV.FECHA_FIRMA] instanceof Date
+                    ? Utilities.formatDate(revDatos[i][COL_REV.FECHA_FIRMA], Session.getScriptTimeZone(), 'yyyy-MM-dd')
+                    : str(revDatos[i][COL_REV.FECHA_FIRMA])
+    };
+  }
+  if (Object.keys(firmados).length === 0) return { ok: true, data: [] };
+
+  // 2) Enriquecer con datos del nomenclador
+  const datos = nomenclador.getDataRange().getValues();
+  const out = [];
+  for (let i = FILA_INICIO - 1; i < datos.length; i++) {
+    const f = datos[i];
+    const legajoEmp = str(f[COL.LEGAJO]);
+    if (!legajoEmp || !firmados[legajoEmp]) continue;
+
+    const codigo   = str(f[COL.CODIGO]);
+    const codComp  = str(f[COL.COD_COMPLETO]);
+    const sedeNom  = str(f[COL.SEDE]);
+    const partes   = codComp.split('|');
+    const sedeCode = partes.length > 1 ? partes[1].trim().toUpperCase() : '';
+    const famCode  = codigo.split('-')[0].toUpperCase();
+
+    out.push({
+      legajo:           legajoEmp,
+      apellido_nombre:  (str(f[COL.APELLIDO]) + ', ' + str(f[COL.NOMBRE])).trim(),
+      sede:             SEDES[sedeCode] || sedeNom,
+      familia:          str(f[COL.FAMILIA]) || FAMILIAS[famCode] || famCode,
+      linkBorrador:     str(f[COL.LINK_BORRAD]),
+      linkDefinitivo:   str(f[COL.LINK_DEFIN]),
+      estado:           normalizarEstado(f[COL.ESTADO]),
+      fecha_firma:      firmados[legajoEmp].fecha_firma
+    });
+  }
+
+  // Más recientes arriba (fecha en yyyy-MM-dd ordena bien como string)
+  out.sort(function(a, b) { return (b.fecha_firma || '').localeCompare(a.fecha_firma || ''); });
+  return { ok: true, data: out };
+}
+
+
 // El jefe firma un descriptivo asignado.
 //   · Valida rol gerente, asignación, no haber firmado ya.
 //   · Marca firmado=SI + fecha + observación.
@@ -1295,6 +1357,7 @@ function doGet(e) {
     else if (accion === 'getJefesElegibles') res = getJefesElegibles(p.legajo, p.nivel);
     else if (accion === 'getRevisoresPorDescriptivo') res = getRevisoresPorDescriptivo(p.legajo);
     else if (accion === 'getNominaPorJefe')  res = getNominaPorJefe(p.legajo_jefe);
+    else if (accion === 'getDescriptivosFirmadosPorJefe') res = getDescriptivosFirmadosPorJefe(p.legajo_jefe);
     else if (accion === 'read')              res = (p.tab === 'Nomina')
                                                ? getNomina({ all: 'true' }, rol)
                                                : { ok: true, data: getRows(p.tab) };
