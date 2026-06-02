@@ -131,11 +131,9 @@ const TRANSICIONES = [
   { from: 'REVISIÓN COLABORADOR', to: 'REVISIÓN JEFE',        roles: ['admin'], requiere: null },
   { from: 'REVISIÓN JEFE',        to: 'PRESENTADO A RRHH',    roles: ['admin'], requiere: 'link' },
 
-  // FORWARD rrhh — último paso (sella). `requiere: 'link'` bloquea sellar sin
-  // link definitivo cargado: el descriptivo puede llegar a PRESENTADO A RRHH
-  // por el auto-advance de firmarRevision/quitarRevisor (que bypassean valida-
-  // ciones), pero el SELLADO sí valida que el link esté cargado.
-  { from: 'PRESENTADO A RRHH',    to: 'SELLADO',              roles: ['rrhh'],  requiere: 'link' },
+  // FORWARD rrhh — último paso (sella). NO exige link definitivo: RRHH sella
+  // sobre el borrador + observaciones. El link definitivo se sube después.
+  { from: 'PRESENTADO A RRHH',    to: 'SELLADO',              roles: ['rrhh'],  requiere: null },
 
   // REBOTE rrhh → admin (descriptivo con observaciones a corregir)
   { from: 'PRESENTADO A RRHH',    to: 'OBSERVADO',            roles: ['rrhh'],  requiere: 'observacion' },
@@ -224,8 +222,7 @@ function validarTransicion(estadoActual, estadoNuevo, rol, datosFila, observacio
   if (t.requiere === 'link') {
     const linkDef = str(datosFila[COL.LINK_DEFIN]);
     if (!linkDef) {
-      // Mensaje genérico: cubre 'presentar a RRHH' y 'sellar' (ambas exigen link).
-      return { ok: false, error: 'Falta cargar el link definitivo antes de avanzar a ' + nuevo };
+      return { ok: false, error: 'Debe cargar el link definitivo (columna U) antes de presentar a RRHH' };
     }
   }
   if (t.requiere === 'observacion') {
