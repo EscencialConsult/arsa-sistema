@@ -734,3 +734,109 @@
     </div>
   </div>
 </div>
+
+<!-- MODAL SELLAR / DEVOLVER RRHH ─────────────────────────────────── -->
+<!-- Se abre cuando rol=rrhh hace click en una fila con estado=PRESENTADO A
+     RRHH. Admin y resto de estados rrhh siguen viendo el panel expandible. -->
+<div class="modal-overlay" *ngIf="modalSellarRrhh.abierto" (click)="cerrarModalSellarRrhh()">
+  <div class="modal modal-sellar-rrhh" (click)="$event.stopPropagation()">
+    <div class="modal-header">
+      <div class="modal-title">Revisar para sellar o devolver</div>
+      <div class="modal-sub">
+        {{ modalSellarRrhh.empleado?.apellido_nombre }}
+        <span class="firmar-meta-sub">— {{ modalSellarRrhh.empleado?.sedeName || modalSellarRrhh.empleado?.sede }} · {{ modalSellarRrhh.empleado?.familia }}</span>
+      </div>
+      <button class="modal-close" (click)="cerrarModalSellarRrhh()">✕</button>
+    </div>
+
+    <div class="modal-body firmar-body">
+      <div *ngIf="modalSellarRrhh.cargando" class="rev-modal-loading">Cargando descriptivo...</div>
+
+      <ng-container *ngIf="!modalSellarRrhh.cargando">
+        <!-- Documento embebido (solo lectura) -->
+        <div class="firmar-doc-wrap">
+          <iframe *ngIf="modalSellarRrhh.docUrl" class="firmar-doc" [src]="modalSellarRrhh.docUrl"></iframe>
+          <div *ngIf="!modalSellarRrhh.docUrl" class="firmar-doc-vacio">
+            No hay link del borrador cargado para este descriptivo.
+          </div>
+        </div>
+
+        <!-- Card naranja: comentario del colaborador -->
+        <div class="firmar-comentario-card">
+          <div class="firmar-comentario-label">
+            Comentario de {{ modalSellarRrhh.empleado?.apellido_nombre }} (colaborador)
+          </div>
+          <div *ngIf="modalSellarRrhh.obsColaborador" class="firmar-comentario-text">
+            "{{ modalSellarRrhh.obsColaborador }}"
+          </div>
+          <div *ngIf="!modalSellarRrhh.obsColaborador" class="firmar-comentario-vacio">
+            El colaborador no dejó comentarios.
+          </div>
+        </div>
+
+        <!-- Cards azules: firmas del jefe (una por cada revisor que firmó) -->
+        <div *ngIf="modalSellarRrhh.firmasJefe.length === 0" class="firma-vacia">
+          No hay firmas de jefe registradas para este descriptivo.
+        </div>
+        <div *ngFor="let f of modalSellarRrhh.firmasJefe" class="firma-jefe-card">
+          <div class="firma-jefe-label">
+            Firmado por {{ f.jefe_nombre }} (jefe) · {{ formatearFecha(f.fecha_firma) }}
+          </div>
+          <div *ngIf="f.observacion" class="firma-jefe-text">"{{ f.observacion }}"</div>
+          <div *ngIf="!f.observacion" class="firma-jefe-vacio">Sin observación adicional.</div>
+        </div>
+
+        <!-- Sección devolución: solo aparece cuando RRHH apretó "Devolver" -->
+        <div *ngIf="modalSellarRrhh.vista === 'devolviendo'" class="devolver-form">
+          <label class="modal-label">Motivo del rebote *</label>
+          <textarea class="modal-textarea" rows="4"
+            placeholder="Detallá qué hay que corregir antes de re-presentar..."
+            [(ngModel)]="modalSellarRrhh.motivo"></textarea>
+          <div class="modal-hint" *ngIf="!modalSellarRrhh.motivo.trim()">
+            ⚠ El motivo es obligatorio para devolver.
+          </div>
+          <div class="modal-hint" *ngIf="modalSellarRrhh.motivo.trim()">
+            Se guarda en obs_rrhh del descriptivo y queda como histórico de la devolución.
+          </div>
+        </div>
+      </ng-container>
+    </div>
+
+    <!-- Footer cambia según la vista -->
+    <div class="modal-footer" *ngIf="!modalSellarRrhh.cargando">
+      <ng-container *ngIf="modalSellarRrhh.vista === 'inicial'">
+        <button class="btn btn-devolver" (click)="mostrarDevolverRrhh()" [disabled]="modalSellarRrhh.procesando">
+          Devolver
+        </button>
+        <button class="btn btn-sellar" (click)="abrirConfirmSellado()" [disabled]="modalSellarRrhh.procesando">
+          Sellar
+        </button>
+      </ng-container>
+      <ng-container *ngIf="modalSellarRrhh.vista === 'devolviendo'">
+        <button class="btn btn-s" (click)="volverAInicialRrhh()" [disabled]="modalSellarRrhh.procesando">
+          Cancelar
+        </button>
+        <button class="btn btn-devolver" (click)="confirmarDevolucionRrhh()"
+                [disabled]="modalSellarRrhh.procesando || !modalSellarRrhh.motivo.trim()">
+          {{ modalSellarRrhh.procesando ? 'Devolviendo...' : 'Confirmar devolución' }}
+        </button>
+      </ng-container>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL CONFIRMACIÓN DEL SELLADO (encima del modal sellar/devolver) -->
+<div class="confirm-modal-overlay" *ngIf="modalConfirmSellado" (click)="cerrarConfirmSellado()">
+  <div class="confirm-modal" (click)="$event.stopPropagation()">
+    <div class="confirm-modal-icon">✓</div>
+    <h3 class="confirm-modal-title">¿Confirmás el sellado?</h3>
+    <p class="confirm-modal-text">
+      Vas a sellar el descriptivo de <strong>{{ modalSellarRrhh.empleado?.apellido_nombre }}</strong>.
+      No se puede revertir desde acá.
+    </p>
+    <div class="confirm-modal-actions">
+      <button class="confirm-modal-btn-cancel" (click)="cerrarConfirmSellado()">Cancelar</button>
+      <button class="confirm-modal-btn-confirm" (click)="ejecutarSelladoRrhh()">Sí, sellar</button>
+    </div>
+  </div>
+</div>

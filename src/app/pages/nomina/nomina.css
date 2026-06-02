@@ -511,6 +511,113 @@
   color: #1F5E40;
 }
 
+/* ── Vista del gerente: historial de aprobados (tarjetas verdes) ──────
+   Espejo de la lista naranja "Esperando firma" de Relevamiento. */
+.firmados-lista {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-top: 12px;
+  max-width: 840px;
+}
+
+.firmados-card {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  flex-wrap: wrap;
+  padding: 16px 18px;
+  background: #fff;
+  border: 1px solid #e1ebf2;
+  border-left: 4px solid #2D7D5A;
+  border-radius: 10px;
+  box-shadow: 0 1px 3px rgba(10, 46, 74, .05);
+  transition: border-color .15s, box-shadow .15s, transform .15s;
+}
+
+.firmados-card:hover {
+  border-color: #cddae3;
+  border-left-color: #246147;
+  box-shadow: 0 4px 16px rgba(10, 46, 74, .10);
+  transform: translateY(-1px);
+}
+
+/* Avatar verde con check (aprobado) */
+.firmados-avatar {
+  flex-shrink: 0;
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, #e8f5ee, #d3ecdd);
+  color: #2D7D5A;
+}
+
+.firmados-info { flex: 1 1 160px; min-width: 0; }
+
+.firmados-nombre {
+  font-size: 15px;
+  font-weight: 600;
+  color: #0A2E4A;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.firmados-meta {
+  font-size: 12px;
+  color: #5E7A8F;
+  margin-top: 4px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.firmados-sep { color: #b2c3cf; }
+
+/* Pill de estado: aprobado + fecha */
+.firmados-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 12px;
+  border-radius: 20px;
+  background: #e8f5ee;
+  color: #2D7D5A;
+  font-size: 11.5px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.firmados-status-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #2D7D5A;
+}
+
+.firmados-btn { flex-shrink: 0; }
+
+.firmados-footer {
+  font-size: 12px;
+  color: #7A9AAF;
+  padding: 4px 2px;
+}
+
+/* Celular: estado y botón pasan a una segunda línea a lo ancho */
+@media (max-width: 560px) {
+  .firmados-status { order: 2; }
+  .firmados-btn {
+    order: 3;
+    width: 100%;
+    text-align: center;
+    margin-top: 2px;
+  }
+}
+
 /* ── Modal genérico (overlay + box) — usado por +Agregar y por Ver ── */
 .modal-overlay {
   position: fixed;

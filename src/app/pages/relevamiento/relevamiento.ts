@@ -195,6 +195,35 @@ export class Relevamiento implements OnInit {
     docUrl: SafeResourceUrl | null;
   } = { abierto: false, empleado: null, observacion: '', firmando: false, docUrl: null };
 
+  // ── Modal RRHH: sellar o devolver con observación ─────────────────
+  // Solo se abre cuando rol=rrhh hace click en una fila de Relevamiento con
+  // estado=PRESENTADO A RRHH (ver toggleDetalle). Admin y otros estados de
+  // rrhh siguen viendo el panel expandible como antes.
+  //   · vista 'inicial'     → header + iframe + comentario colab + firmas jefe
+  //                           + footer con 2 botones (Devolver / Sellar).
+  //   · vista 'devolviendo' → suma textarea de motivo obligatorio + footer
+  //                           cambia a (Cancelar / Confirmar devolución).
+  modalSellarRrhh: {
+    abierto: boolean;
+    empleado: any;
+    docUrl: SafeResourceUrl | null;
+    obsColaborador: string;       // del getMiDescriptivo (no viene en getNomina)
+    firmasJefe: any[];             // filtradas firmado=true del getRevisoresPorDescriptivo
+    vista: 'inicial' | 'devolviendo';
+    motivo: string;
+    procesando: boolean;
+    cargando: boolean;             // mientras llegan los 2 fetches (obs colab + firmas)
+  } = {
+    abierto: false, empleado: null, docUrl: null,
+    obsColaborador: '', firmasJefe: [],
+    vista: 'inicial', motivo: '',
+    procesando: false, cargando: false
+  };
+
+  // Mini modal de confirmación encima del modal sellar/devolver. Solo aparece
+  // cuando rrhh tocó "Sellar" (no para devolver — el motivo escrito alcanza).
+  modalConfirmSellado = false;
+
   // ── Internos ──────────────────────────────────────────────────────
   private todosLosEmpleados: any[] = [];
 
@@ -516,11 +545,19 @@ export class Relevamiento implements OnInit {
   }
 
   // ── Toggle fila privada ───────────────────────────────────────────
+  // Intercepción para RRHH: cuando RRHH abre un descriptivo en PRESENTADO A
+  // RRHH, en vez de expandir el panel de admin (edición de links/privados),
+  // se abre el modal de cierre con los 2 botones (Sellar / Devolver).
+  // El resto (admin siempre, rrhh con otros estados) cae al flujo original.
   toggleDetalle(legajo: string) {
+    const emp = this.empleados().find(e => e.legajo === legajo);
+    if (this.rolUsuario === 'rrhh' && emp?.estado === 'PRESENTADO A RRHH') {
+      if (emp) this.abrirModalSellarRrhh(emp);
+      return;
+    }
     this.filaAbierta = this.filaAbierta === legajo ? '' : legajo;
-    if (this.filaAbierta) {
-      const emp = this.empleados().find(e => e.legajo === legajo);
-      if (emp && !emp.revisoresCargado) this.cargarRevisores(emp);
+    if (this.filaAbierta && emp && !emp.revisoresCargado) {
+      this.cargarRevisores(emp);
     }
   }
 
@@ -825,6 +862,155 @@ export class Relevamiento implements OnInit {
         m.firmando = false;
         this.errorJefe.set('Error de conexión al firmar');
         setTimeout(() => this.errorJefe.set(''), 4000);
+      }
+    });
+  }
+
+  // ── Modal RRHH: sellar o devolver ─────────────────────────────────
+  abrirModalSellarRrhh(emp: any): void {
+    this.modalSellarRrhh = {
+      abierto: true, empleado: emp, docUrl: this.armarDocUrl(emp.linkBorrador),
+      obsColaborador: '', firmasJefe: [],
+      vista: 'inicial', motivo: '',
+      procesando: false, cargando: true
+    };
+    // 2 fetches en paralelo — apagar 'cargando' cuando ambos vuelven.
+    let pendientes = 2;
+    const fin = () => { if (--pendientes <= 0) this.modalSellarRrhh.cargando = false; };
+
+    // (1) Obs y fecha del colaborador → no vienen en getNomina; vienen en getMiDescriptivo.
+    this.api.getMiDescriptivo(emp.legajo).subscribe({
+      next: (res) => {
+        if (res.ok) this.modalSellarRrhh.obsColaborador = res.data?.observacionColaborador || '';
+        fin();
+      },
+      error: () => fin()
+    });
+
+    // (2) Firmas del jefe → endpoint que ya existe; filtramos firmado=true.
+    this.api.getRevisoresPorDescriptivo(emp.legajo).subscribe({
+      next: (res) => {
+        if (res.ok) this.modalSellarRrhh.firmasJefe = (res.data || []).filter((r: any) => r.firmado);
+        fin();
+      },
+      error: () => fin()
+    });
+  }
+
+  cerrarModalSellarRrhh(): void {
+    this.modalSellarRrhh = {
+      abierto: false, empleado: null, docUrl: null,
+      obsColaborador: '', firmasJefe: [],
+      vista: 'inicial', motivo: '',
+      procesando: false, cargando: false
+    };
+    this.modalConfirmSellado = false;
+  }
+
+  mostrarDevolverRrhh(): void {
+    this.modalSellarRrhh.vista = 'devolviendo';
+    this.modalSellarRrhh.motivo = '';
+  }
+
+  volverAInicialRrhh(): void {
+    this.modalSellarRrhh.vista = 'inicial';
+    this.modalSellarRrhh.motivo = '';
+  }
+
+  // Apretar "Sellar" abre el mini modal de confirmación, no dispara el POST.
+  abrirConfirmSellado(): void {
+    if (this.modalSellarRrhh.procesando) return;
+    this.modalConfirmSellado = true;
+  }
+
+  cerrarConfirmSellado(): void {
+    this.modalConfirmSellado = false;
+  }
+
+  // Sellado real — invocado solo desde "Sí, sellar" del modal de confirmación.
+  ejecutarSelladoRrhh(): void {
+    const m = this.modalSellarRrhh;
+    if (!m.empleado || m.procesando) return;
+    this.modalConfirmSellado = false;
+    m.procesando = true;
+    const u = JSON.parse(localStorage.getItem('usuario') || '{}');
+    const leg = m.empleado.legajo;
+
+    this.api.post({
+      action: 'updateEntrevista',
+      data: {
+        id_entrevista: leg,
+        estado:        'SELLADO',
+        observacion:   '',
+        rol:           'rrhh',
+        autor_nombre:  u.nombre || '',
+        autor_legajo:  u.legajo || ''
+      }
+    }).subscribe({
+      next: (res) => {
+        if (res.ok) {
+          this.empleados.update(l => l.map(e => e.legajo === leg ? { ...e, estado: 'SELLADO' } : e));
+          this.todosLosEmpleados = this.todosLosEmpleados.map(e =>
+            e.legajo === leg ? { ...e, estado: 'SELLADO' } : e
+          );
+          this.cargarStats();
+          this.cerrarModalSellarRrhh();
+        } else {
+          m.procesando = false;
+          this.errorMsg.set(res.error || 'No se pudo sellar');
+          setTimeout(() => this.errorMsg.set(''), 4000);
+        }
+      },
+      error: () => {
+        m.procesando = false;
+        this.errorMsg.set('Error de conexión al sellar');
+        setTimeout(() => this.errorMsg.set(''), 4000);
+      }
+    });
+  }
+
+  // Devolución — el motivo es obligatorio (botón ya estaba deshabilitado en
+  // la UI cuando texto vacío; defensa extra acá igual).
+  confirmarDevolucionRrhh(): void {
+    const m = this.modalSellarRrhh;
+    if (!m.empleado || m.procesando) return;
+    const motivo = m.motivo.trim();
+    if (!motivo) return;
+    m.procesando = true;
+    const u = JSON.parse(localStorage.getItem('usuario') || '{}');
+    const leg = m.empleado.legajo;
+
+    this.api.post({
+      action: 'updateEntrevista',
+      data: {
+        id_entrevista: leg,
+        estado:        'OBSERVADO',
+        observacion:   motivo,
+        rol:           'rrhh',
+        autor_nombre:  u.nombre || '',
+        autor_legajo:  u.legajo || ''
+      }
+    }).subscribe({
+      next: (res) => {
+        if (res.ok) {
+          this.empleados.update(l => l.map(e =>
+            e.legajo === leg ? { ...e, estado: 'OBSERVADO', observacion: motivo } : e
+          ));
+          this.todosLosEmpleados = this.todosLosEmpleados.map(e =>
+            e.legajo === leg ? { ...e, estado: 'OBSERVADO', observacion: motivo } : e
+          );
+          this.cargarStats();
+          this.cerrarModalSellarRrhh();
+        } else {
+          m.procesando = false;
+          this.errorMsg.set(res.error || 'No se pudo devolver');
+          setTimeout(() => this.errorMsg.set(''), 4000);
+        }
+      },
+      error: () => {
+        m.procesando = false;
+        this.errorMsg.set('Error de conexión al devolver');
+        setTimeout(() => this.errorMsg.set(''), 4000);
       }
     });
   }

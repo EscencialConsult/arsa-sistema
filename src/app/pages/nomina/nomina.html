@@ -44,36 +44,31 @@
     <div class="ev-sub">Cuando firmes uno desde Relevamiento, va a aparecer acá.</div>
   </div>
 
-  <div *ngIf="!cargandoJefe() && firmadosJefe().length > 0" class="tbl-wrap">
-    <table class="tbl">
-      <thead>
-        <tr>
-          <th>Empleado</th>
-          <th>Sede</th>
-          <th>Firmado</th>
-          <th></th>
-        </tr>
-      </thead>
-      <tbody>
-        <tr *ngFor="let e of firmadosVisibles(); trackBy: trackByLegajo">
-          <td class="td-empleado">
-            <div class="emp-nombre">{{ e.apellido_nombre }}</div>
-            <div class="emp-meta">{{ e.familia }}</div>
-          </td>
-          <td class="td-sede">{{ e.sede || '—' }}</td>
-          <td class="td-firmado">
-            <span class="firmado-check">✓</span>
-            <span class="firmado-fecha">{{ formatearFechaFirma(e.fecha_firma) }}</span>
-          </td>
-          <td>
-            <button class="btn-ver" (click)="abrirModalVer(e)">Ver</button>
-          </td>
-        </tr>
-      </tbody>
-    </table>
+  <div *ngIf="!cargandoJefe() && firmadosJefe().length > 0" class="firmados-lista">
+    <div *ngFor="let e of firmadosVisibles(); trackBy: trackByLegajo" class="firmados-card">
+      <div class="firmados-avatar" aria-hidden="true">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+             stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+          <polyline points="20 6 9 17 4 12" />
+        </svg>
+      </div>
+      <div class="firmados-info">
+        <div class="firmados-nombre">{{ e.apellido_nombre }}</div>
+        <div class="firmados-meta">
+          <span>{{ e.sede || '—' }}</span>
+          <span class="firmados-sep">·</span>
+          <span>{{ e.familia }}</span>
+        </div>
+      </div>
+      <span class="firmados-status">
+        <span class="firmados-status-dot"></span>
+        Aprobado · {{ formatearFechaFirma(e.fecha_firma) }}
+      </span>
+      <button class="btn-ver firmados-btn" (click)="abrirModalVer(e)">Ver</button>
+    </div>
 
-    <div class="tbl-footer">
-      <span>{{ firmadosVisibles().length }} descriptivo{{ firmadosVisibles().length === 1 ? '' : 's' }} aprobado{{ firmadosVisibles().length === 1 ? '' : 's' }}</span>
+    <div class="firmados-footer">
+      {{ firmadosVisibles().length }} descriptivo{{ firmadosVisibles().length === 1 ? '' : 's' }} aprobado{{ firmadosVisibles().length === 1 ? '' : 's' }}
     </div>
   </div>
 

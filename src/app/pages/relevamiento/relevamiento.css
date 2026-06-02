@@ -2112,3 +2112,101 @@
   .firmar-doc { height: 380px; }
   .modal-firmar { width: 100vw; max-width: 100vw; }
 }
+
+/* ── Modal sellar / devolver RRHH ─────────────────────────────────── */
+.modal-sellar-rrhh {
+  max-width: 880px;
+  width: 95vw;
+}
+
+/* Cards azules — firma del jefe (paleta navy con acento Agua Clara). */
+.firma-jefe-card {
+  background: #f0f7fb;
+  border: 1px solid #c5dff0;
+  border-left: 4px solid #4BAED4;
+  border-radius: 8px;
+  padding: 12px 16px;
+  margin-bottom: 10px;
+}
+
+.firma-jefe-label {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .04em;
+  color: #1A5F8A;
+  margin-bottom: 6px;
+}
+
+.firma-jefe-text {
+  font-size: 14px;
+  color: #0A2E4A;
+  line-height: 1.55;
+}
+
+.firma-jefe-vacio {
+  font-size: 13px;
+  color: #5E7A8F;
+  font-style: italic;
+}
+
+.firma-vacia {
+  font-size: 13px;
+  color: #7A9AAF;
+  font-style: italic;
+  padding: 12px 0 4px;
+}
+
+/* Sección de devolución — se despliega cuando RRHH apretó "Devolver" */
+.devolver-form {
+  margin-top: 16px;
+  padding-top: 16px;
+  border-top: 1px solid rgba(10, 46, 74, .08);
+}
+
+/* Botón Devolver — naranja, acción de rebote */
+.btn-devolver {
+  background: #e8924a;
+  color: #fff;
+  border: 1px solid #e8924a;
+  padding: 10px 22px;
+  border-radius: 6px;
+  font-weight: 600;
+  font-size: 14px;
+  cursor: pointer;
+  transition: background .15s, border-color .15s;
+}
+
+.btn-devolver:hover:not(:disabled) {
+  background: #d4781e;
+  border-color: #d4781e;
+}
+
+.btn-devolver:disabled {
+  opacity: .55;
+  cursor: not-allowed;
+}
+
+/* Botón Sellar — verde Patagonia, acción de cierre */
+.btn-sellar {
+  background: #2D7D5A;
+  color: #fff;
+  border: 1px solid #2D7D5A;
+  padding: 10px 22px;
+  border-radius: 6px;
+  font-weight: 600;
+  font-size: 14px;
+  cursor: pointer;
+  margin-left: auto;
+  transition: background .15s, border-color .15s;
+}
+
+.btn-sellar:hover:not(:disabled) {
+  background: #246147;
+  border-color: #246147;
+}
+
+.btn-sellar:disabled {
+  opacity: .55;
+  cursor: not-allowed;
+}
