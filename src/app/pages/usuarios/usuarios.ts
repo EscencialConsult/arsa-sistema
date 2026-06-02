@@ -44,12 +44,24 @@ export class Usuarios implements OnInit {
     this.cargar();
   }
 
+  // Rol del usuario logueado. Lo usamos para esconderle los admins a RRHH
+  // (defensa contra escalation: RRHH no puede ver ni editar cuentas admin).
+  private get rolLogueado(): string {
+    try {
+      return (JSON.parse(localStorage.getItem('usuario') || '{}').rol || '').toLowerCase();
+    } catch { return ''; }
+  }
+
   async cargar() {
     this.cargando = true;
     this.error = '';
     try {
       const data = await firstValueFrom(this.api.leerTabla('Usuarios'));
-      this.usuarios = (data?.data as any[]) || [];
+      const todos = (data?.data as any[]) || [];
+      // RRHH no ve a los admins. Admin sí ve a todos (incluyendo otros admin).
+      this.usuarios = this.rolLogueado === 'rrhh'
+        ? todos.filter(u => String(u.rol || '').toLowerCase() !== 'admin')
+        : todos;
       this.filtrar();
     } catch (e) {
       this.error = 'Error al cargar usuarios.';
@@ -130,7 +142,11 @@ export class Usuarios implements OnInit {
   }
 
   get rolesDisponibles() {
-    return ['admin', 'rrhh', 'gerente', 'empleado'];
+    // Anti-escalation: RRHH no puede crear ni promover a alguien a admin.
+    // Admin sí puede asignar cualquier rol.
+    return this.rolLogueado === 'rrhh'
+      ? ['rrhh', 'gerente', 'empleado']
+      : ['admin', 'rrhh', 'gerente', 'empleado'];
   }
 
   get totalActivos() { return this.usuarios.filter(u => u.activo === 'SI').length; }

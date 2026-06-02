@@ -73,6 +73,12 @@ export class LayoutComponent implements OnInit {
       items: [
         { label: 'Organigrama', ruta: '/organigrama', bloqueado: false, icon: 'organigrama' }
       ]
+    },
+    {
+      nombre: 'Sistema',
+      items: [
+        { label: 'Usuarios', ruta: '/usuarios', bloqueado: false, icon: 'usuarios' }
+      ]
     }
   ];
 
@@ -84,17 +90,10 @@ export class LayoutComponent implements OnInit {
       ]
     },
     {
-      nombre: 'General',
-      items: [
-        { label: 'Dashboard', ruta: '/dashboard', bloqueado: false, icon: 'dashboard' }
-      ]
-    },
-    {
       nombre: 'Gestión',
       items: [
         { label: 'Nómina',       ruta: '/nomina',       bloqueado: false, icon: 'nomina' },
         { label: 'Relevamiento', ruta: '/relevamiento', bloqueado: false, icon: 'relevamiento' },
-        { label: 'Descriptivos', ruta: '/descriptivos', bloqueado: false, icon: 'descriptivos' },
       ]
     }
   ];

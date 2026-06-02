@@ -66,7 +66,14 @@ export class LoginComponent {
     localStorage.setItem('rol', data.rol);
     localStorage.setItem('usuario', JSON.stringify(data));
     const rol = (data.rol || '').toLowerCase();
-    this.router.navigate([rol === 'empleado' ? '/mi-descriptivo' : '/dashboard']);
+    // Cada rol arranca en su pantalla útil:
+    //   empleado → su propio descriptivo
+    //   gerente  → relevamiento (no tiene Dashboard en el menú)
+    //   admin/rrhh → dashboard
+    const landing = rol === 'empleado' ? '/mi-descriptivo'
+                  : rol === 'gerente'  ? '/relevamiento'
+                  : '/dashboard';
+    this.router.navigate([landing]);
   }
 
 }

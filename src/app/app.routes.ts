@@ -16,6 +16,16 @@ function adminGuard(): boolean {
   return true;
 }
 
+// Para /usuarios: admin Y rrhh entran (RRHH gestiona altas y contraseñas;
+// la pantalla en sí filtra los usuarios con rol=admin cuando el logueado es rrhh).
+function adminOrRrhhGuard(): boolean {
+  const raw = localStorage.getItem('usuario');
+  if (!raw) { window.location.href = '/login'; return false; }
+  const rol = (JSON.parse(raw).rol || '').toLowerCase();
+  if (rol !== 'admin' && rol !== 'rrhh') { window.location.href = '/dashboard'; return false; }
+  return true;
+}
+
 function empleadoGuard(): boolean {
   const raw = localStorage.getItem('usuario');
   if (!raw) { window.location.href = '/login'; return false; }
@@ -42,7 +52,7 @@ export const routes: Routes = [
       { path: 'descriptivos',   loadComponent: () => import('./pages/descriptivos/descriptivos').then(m => m.Descriptivos), canActivate: [empleadoGuard] },
       { path: 'procedimientos', loadComponent: () => import('./pages/procedimientos/procedimientos').then(m => m.Procedimientos), canActivate: [empleadoGuard] },
       { path: 'organigrama',    loadComponent: () => import('./pages/organigrama/organigrama').then(m => m.Organigrama), canActivate: [empleadoGuard] },
-      { path: 'usuarios',       loadComponent: () => import('./pages/usuarios/usuarios').then(m => m.Usuarios), canActivate: [adminGuard] },
+      { path: 'usuarios',       loadComponent: () => import('./pages/usuarios/usuarios').then(m => m.Usuarios), canActivate: [adminOrRrhhGuard] },
     ]
   },
   { path: '**', redirectTo: 'login' }
