@@ -142,8 +142,10 @@ export const TRANSICIONES: Transicion[] = [
   { from: 'REVISIÓN COLABORADOR', to: 'REVISIÓN JEFE',        roles: ['admin'], requiere: null },
   { from: 'REVISIÓN JEFE',        to: 'PRESENTADO A RRHH',    roles: ['admin'], requiere: 'link' },
 
-  // FORWARD rrhh — sella
-  { from: 'PRESENTADO A RRHH',    to: 'SELLADO',              roles: ['rrhh'],  requiere: null },
+  // FORWARD rrhh — sella. `requiere: 'link'` bloquea sellar sin link definitivo.
+  // El descriptivo puede haber llegado a PRESENTADO A RRHH por el auto-advance
+  // del flujo de jefes (bypassa validaciones), pero el SELLADO sí lo exige.
+  { from: 'PRESENTADO A RRHH',    to: 'SELLADO',              roles: ['rrhh'],  requiere: 'link' },
 
   // OBSERVADO admin — reinyección a cualquier punto del flujo
   { from: 'OBSERVADO',            to: 'PENDIENTE',            roles: ['admin'], requiere: null },

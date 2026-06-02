@@ -131,8 +131,11 @@ const TRANSICIONES = [
   { from: 'REVISIÓN COLABORADOR', to: 'REVISIÓN JEFE',        roles: ['admin'], requiere: null },
   { from: 'REVISIÓN JEFE',        to: 'PRESENTADO A RRHH',    roles: ['admin'], requiere: 'link' },
 
-  // FORWARD rrhh — último paso (sella)
-  { from: 'PRESENTADO A RRHH',    to: 'SELLADO',              roles: ['rrhh'],  requiere: null },
+  // FORWARD rrhh — último paso (sella). `requiere: 'link'` bloquea sellar sin
+  // link definitivo cargado: el descriptivo puede llegar a PRESENTADO A RRHH
+  // por el auto-advance de firmarRevision/quitarRevisor (que bypassean valida-
+  // ciones), pero el SELLADO sí valida que el link esté cargado.
+  { from: 'PRESENTADO A RRHH',    to: 'SELLADO',              roles: ['rrhh'],  requiere: 'link' },
 
   // REBOTE rrhh → admin (descriptivo con observaciones a corregir)
   { from: 'PRESENTADO A RRHH',    to: 'OBSERVADO',            roles: ['rrhh'],  requiere: 'observacion' },
@@ -221,7 +224,8 @@ function validarTransicion(estadoActual, estadoNuevo, rol, datosFila, observacio
   if (t.requiere === 'link') {
     const linkDef = str(datosFila[COL.LINK_DEFIN]);
     if (!linkDef) {
-      return { ok: false, error: 'Debe cargar el link definitivo (columna U) antes de presentar a RRHH' };
+      // Mensaje genérico: cubre 'presentar a RRHH' y 'sellar' (ambas exigen link).
+      return { ok: false, error: 'Falta cargar el link definitivo antes de avanzar a ' + nuevo };
     }
   }
   if (t.requiere === 'observacion') {
@@ -1232,6 +1236,56 @@ function _degradarJefeSiCorresponde(usuariosSheet, legajo) {
 }
 
 
+// Asegura que el nomenclador tenga las 3 columnas de registro del sellado de RRHH:
+//   · sello_rrhh  → autor del sellado, formato "Nombre (legajo)"
+//   · fecha_sello → timestamp del sellado
+//   · obs_rrhh    → observación de RRHH (al sellar opcional, al devolver obligatoria)
+//
+// Layout objetivo (confirmado contra la planilla real):
+//   · Headers de los nombres técnicos viven en FILA 2 del nomenclador (no fila 1,
+//     que mezcla título + headers humanos descriptivos).
+//   · Columnas hasta AI (idx 35 1-based) están en uso: ...AG=teléfono, AH=obs_colab,
+//     AI=fecha_colab. Las 3 nuevas arrancan en AJ (36) — primer slot libre.
+//
+// Idempotente:
+//   · Si las columnas ya existen (encontradas por nombre en fila 2), retorna sus
+//     posiciones actuales sin tocar nada.
+//   · Si faltan, las appendea desde max(lastCol+1, AJ=36). El piso AJ garantiza que
+//     nunca pisemos las cols AG/AH/AI aunque getLastColumn devuelva algo raro.
+//   · Si hubiera data lateral más allá de AI (improbable), el helper salta a la
+//     siguiente posición libre para no pisar — defensa adicional.
+//
+// Returns un objeto con índices 1-based listos para getRange():
+//   { sello_rrhh: <col>, fecha_sello: <col>, obs_rrhh: <col> }
+function _asegurarColumnasSelloRrhh(nomencladorSheet) {
+  if (!nomencladorSheet) return null;
+  const NOMBRES = ['sello_rrhh', 'fecha_sello', 'obs_rrhh'];
+  const HEADER_ROW_NOM = 2;   // headers técnicos del nomenclador
+  const PRIMER_COL_LIBRE = 36;  // AJ — primer slot libre después de AG/AH/AI
+
+  const lastCol = nomencladorSheet.getLastColumn();
+  const headers = nomencladorSheet.getRange(HEADER_ROW_NOM, 1, 1, lastCol).getValues()[0];
+
+  // Punto de partida para appendear: max(lastCol, AJ-1). Si lastCol == 35 (AI),
+  // nextCol arranca en 35 y al primer ++ va a 36 (AJ). Si por algún motivo
+  // lastCol fuera menor (hoja recién creada), igualmente arranca en AJ.
+  const out = {};
+  let nextCol = Math.max(lastCol, PRIMER_COL_LIBRE - 1);
+  for (let i = 0; i < NOMBRES.length; i++) {
+    const nombre = NOMBRES[i];
+    const idx = headers.indexOf(nombre);
+    if (idx >= 0) {
+      out[nombre] = idx + 1;   // ya existe → usar su posición actual
+    } else {
+      nextCol++;
+      nomencladorSheet.getRange(HEADER_ROW_NOM, nextCol).setValue(nombre);
+      out[nombre] = nextCol;
+    }
+  }
+  return out;
+}
+
+
 // ══════════════════════════════════════════════════════════════════
 //  LINKS / preview
 // ══════════════════════════════════════════════════════════════════
@@ -1575,7 +1629,7 @@ function doPost(e) {
 
 // Cambia el estado del relevamiento aplicando la máquina de transiciones.
 // Si la transición es a REVISIÓN, escribe también la observación (col X) en la misma ejecución.
-function actualizarEstado(legajo, nuevoEstado, rol, observacion, forzar) {
+function actualizarEstado(legajo, nuevoEstado, rol, observacion, forzar, autorNombre, autorLegajo) {
   if (!legajo)      return { ok: false, error: 'Falta legajo' };
   if (!nuevoEstado) return { ok: false, error: 'Falta estado' };
   if (!rol)         return { ok: false, error: 'Falta rol' };
@@ -1609,12 +1663,33 @@ function actualizarEstado(legajo, nuevoEstado, rol, observacion, forzar) {
     observacionGuardada = true;
   }
 
+  // Registrar trazabilidad del SELLADO (Punto 1 del cierre de RRHH).
+  // Solo se ejecuta cuando RRHH sella. Para el resto de transiciones, no toca
+  // nada de las nuevas columnas — la transición a OBSERVADO va en otro commit.
+  let selloRegistrado = false;
+  if (nuevo === 'SELLADO' && String(rol).toLowerCase() === 'rrhh') {
+    const cols = _asegurarColumnasSelloRrhh(hoja);
+    if (cols) {
+      const nombre = str(autorNombre);
+      const lg     = str(autorLegajo);
+      // Formato "Nombre (legajo)". Si no llega el nombre, queda solo el legajo
+      // o un placeholder claro para que sea evidente en auditoría.
+      const huella = nombre
+        ? (lg ? nombre + ' (' + lg + ')' : nombre)
+        : (lg ? '(' + lg + ')' : '— sin autor identificado —');
+      hoja.getRange(rowIndex + 1, cols.sello_rrhh).setValue(huella);
+      hoja.getRange(rowIndex + 1, cols.fecha_sello).setValue(new Date());
+      selloRegistrado = true;
+    }
+  }
+
   return {
     ok: true,
     legajo: str(legajo),
     estadoAnterior: estadoAnterior,
     estado: nuevo,
-    observacionGuardada: observacionGuardada
+    observacionGuardada: observacionGuardada,
+    selloRegistrado: selloRegistrado
   };
 }
 
@@ -1680,7 +1755,12 @@ function updateEntrevistaRouter(data) {
   }
 
   if (tieneEstado) {
-    const r = actualizarEstado(legajo, data.estado, data.rol, data.observacion, data.forzar);
+    // autor_nombre / autor_legajo: para trazabilidad del sellado de RRHH.
+    // Se persisten solo en la transición a SELLADO por rol rrhh.
+    const r = actualizarEstado(
+      legajo, data.estado, data.rol, data.observacion, data.forzar,
+      data.autor_nombre, data.autor_legajo
+    );
     if (!r.ok) return r;
     resultados.estado = r;
   }

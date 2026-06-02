@@ -476,6 +476,10 @@ export class Relevamiento implements OnInit {
       );
     };
 
+    // Identidad del usuario logueado — el backend la persiste en sello_rrhh
+    // cuando RRHH sella (Punto 1 del cierre del flujo). Para el resto de las
+    // transiciones se ignora silenciosamente; no molesta mandarla siempre.
+    const u = JSON.parse(localStorage.getItem('usuario') || '{}');
     this.api.post({
       action: 'updateEntrevista',
       data: {
@@ -483,6 +487,8 @@ export class Relevamiento implements OnInit {
         estado:        nuevoEstado,
         observacion:   observacion,
         rol:           this.rolUsuario,
+        autor_nombre:  u.nombre || '',
+        autor_legajo:  u.legajo || '',
       }
     }).subscribe({
       next: (res) => {
