@@ -1,4 +1,85 @@
-<div class="panel">
+<!-- ═══════════════════════════════════════════════════════════════════
+     VISTA DEL GERENTE — historial de descriptivos que aprobó (firmó).
+     Backend (getDescriptivosFirmadosPorJefe) filtra por jefe_legajo + firmado=SI.
+     ═══════════════════════════════════════════════════════════════════ -->
+<div class="panel" *ngIf="esGerente">
+
+  <div class="ph">
+    <div class="ph-left">
+      <div class="ph-eye">Historial</div>
+      <div class="ph-title">Descriptivos que aprobaste</div>
+      <div class="gerente-sub">Historial de las revisiones que firmaste.</div>
+    </div>
+  </div>
+
+  <div class="tbl-toolbar" *ngIf="!cargandoJefe() && firmadosJefe().length > 0">
+    <div class="search-wrap">
+      <input class="tbl-search" type="text"
+             placeholder="Buscar por nombre o legajo..."
+             [(ngModel)]="busquedaJefe" />
+      <button class="btn-lupa" title="Buscar">
+        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24"
+             fill="none" stroke="currentColor" stroke-width="2.2"
+             stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
+        </svg>
+      </button>
+    </div>
+  </div>
+
+  <div *ngIf="cargandoJefe()" class="loading-wrap">
+    <div class="loading-bar"></div>
+    <span>Cargando tu historial...</span>
+  </div>
+
+  <div *ngIf="errorJefe() && !cargandoJefe()" class="estado-error">
+    <span>⚠ {{ errorJefe() }}</span>
+    <button class="btn btn-s" (click)="cargarFirmadosJefe()">Reintentar</button>
+  </div>
+
+  <div *ngIf="!cargandoJefe() && !errorJefe() && firmadosJefe().length === 0"
+       class="estado-vacio">
+    <div class="ev-ico">○</div>
+    <div class="ev-title">Todavía no aprobaste ningún descriptivo</div>
+    <div class="ev-sub">Cuando firmes uno desde Relevamiento, va a aparecer acá.</div>
+  </div>
+
+  <div *ngIf="!cargandoJefe() && firmadosJefe().length > 0" class="tbl-wrap">
+    <table class="tbl">
+      <thead>
+        <tr>
+          <th>Empleado</th>
+          <th>Sede</th>
+          <th>Firmado</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr *ngFor="let e of firmadosVisibles(); trackBy: trackByLegajo">
+          <td class="td-empleado">
+            <div class="emp-nombre">{{ e.apellido_nombre }}</div>
+            <div class="emp-meta">{{ e.familia }}</div>
+          </td>
+          <td class="td-sede">{{ e.sede || '—' }}</td>
+          <td class="td-firmado">
+            <span class="firmado-check">✓</span>
+            <span class="firmado-fecha">{{ formatearFechaFirma(e.fecha_firma) }}</span>
+          </td>
+          <td>
+            <button class="btn-ver" (click)="abrirModalVer(e)">Ver</button>
+          </td>
+        </tr>
+      </tbody>
+    </table>
+
+    <div class="tbl-footer">
+      <span>{{ firmadosVisibles().length }} descriptivo{{ firmadosVisibles().length === 1 ? '' : 's' }} aprobado{{ firmadosVisibles().length === 1 ? '' : 's' }}</span>
+    </div>
+  </div>
+
+</div>
+
+<div class="panel" *ngIf="!esGerente">
 
   <!-- HEADER -->
   <div class="ph">
@@ -7,10 +88,12 @@
       <div class="ph-title">Nómina de Empleados</div>
     </div>
     <div class="ph-right">
-      <button class="btn btn-s" (click)="exportarCSV()" [disabled]="!hayResultados()" *ngIf="rolUsuario !== 'rrhh'">
+      <button class="btn btn-s" (click)="exportarCSV()" [disabled]="!hayResultados()"
+              *ngIf="rolUsuario !== 'rrhh' && !esGerente">
         Exportar CSV
       </button>
-      <button class="btn btn-p" (click)="abrirModal()" *ngIf="rolUsuario !== 'rrhh'">+ Agregar</button>
+      <button class="btn btn-p" (click)="abrirModal()"
+              *ngIf="rolUsuario !== 'rrhh' && !esGerente">+ Agregar</button>
     </div>
   </div>
 
@@ -32,27 +115,62 @@
       </button>
     </div>
 
-    <select class="tbl-filter" [(ngModel)]="filtroSede" (change)="onFiltroChange()">
-      <option value="">Todas las sedes</option>
-      <option *ngFor="let s of listaSedes" [value]="s.code">{{ s.name }}</option>
-    </select>
+    <!-- Botón Filtros: solo visible en celular/tablet. Abre/cierra los desplegables. -->
+    <button class="btn-filtros" (click)="toggleFiltros()"
+            [class.activo]="filtrosAbiertos() || cantFiltrosActivos > 0">
+      <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24"
+           fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/>
+      </svg>
+      Filtros
+      <span class="filtros-badge" *ngIf="cantFiltrosActivos > 0">{{ cantFiltrosActivos }}</span>
+    </button>
 
-    <select class="tbl-filter" [(ngModel)]="filtroFamilia" (change)="onFiltroChange()">
-      <option value="">Todas las familias</option>
-      <option *ngFor="let f of listaFamilias" [value]="f.code">{{ f.name }}</option>
-    </select>
+    <!-- Desplegables: en desktop van inline en la toolbar; en celular colapsan -->
+    <div class="tbl-filtros" [class.abierto]="filtrosAbiertos()">
+      <select class="tbl-filter" [(ngModel)]="filtroSede" (change)="onFiltroChange()">
+        <option value="">Todas las sedes</option>
+        <option *ngFor="let s of listaSedes" [value]="s.code">{{ s.name }}</option>
+      </select>
 
-    <select class="tbl-filter" [(ngModel)]="filtroEstado" (change)="onFiltroChange()">
-      <option value="">Todos los estados</option>
-      <option value="PENDIENTE">Pendiente</option>
-      <option value="ENTREVISTADO">Entrevistado</option>
-      <option value="REVISIÓN COLABORADOR">Revisión colaborador</option>
-      <option value="REVISIÓN JEFE">Revisión jefe</option>
-      <option value="PRESENTADO A RRHH">Presentado a RRHH</option>
-      <option value="SELLADO">Sellado</option>
-      <option value="OBSERVADO">Observado</option>
-      <option value="FUERA DE FLUJO">Fuera de flujo</option>
-    </select>
+      <select class="tbl-filter" [(ngModel)]="filtroFamilia" (change)="onFiltroChange()">
+        <option value="">Todas las familias</option>
+        <option *ngFor="let f of listaFamilias" [value]="f.code">{{ f.name }}</option>
+      </select>
+
+      <select class="tbl-filter" [(ngModel)]="filtroEstado" (change)="onFiltroChange()">
+        <option value="">Todos los estados</option>
+        <option value="PENDIENTE">Pendiente</option>
+        <option value="ENTREVISTADO">Entrevistado</option>
+        <option value="REVISIÓN COLABORADOR">Revisión colaborador</option>
+        <option value="REVISIÓN JEFE">Revisión jefe</option>
+        <option value="PRESENTADO A RRHH">Presentado a RRHH</option>
+        <option value="SELLADO">Sellado</option>
+        <option value="OBSERVADO">Observado</option>
+        <option value="FUERA DE FLUJO">Fuera de flujo</option>
+      </select>
+    </div>
+  </div>
+
+  <!-- CHIPS de filtros activos: dejan claro qué se está viendo y cómo resetear -->
+  <div class="filtros-activos" *ngIf="hayFiltro">
+    <span class="chip" *ngIf="busqueda">
+      <span class="chip-tipo">Búsqueda:</span>&nbsp;"{{ busqueda }}"
+      <button class="chip-x" (click)="limpiarBusqueda()" aria-label="Quitar búsqueda">✕</button>
+    </span>
+    <span class="chip" *ngIf="filtroSede">
+      {{ nombreSede(filtroSede) }}
+      <button class="chip-x" (click)="quitarSede()" aria-label="Quitar sede">✕</button>
+    </span>
+    <span class="chip" *ngIf="filtroFamilia">
+      {{ nombreFamilia(filtroFamilia) }}
+      <button class="chip-x" (click)="quitarFamilia()" aria-label="Quitar familia">✕</button>
+    </span>
+    <span class="chip" *ngIf="filtroEstado">
+      {{ estadoLabel(filtroEstado) }}
+      <button class="chip-x" (click)="quitarEstado()" aria-label="Quitar estado">✕</button>
+    </span>
+    <button class="chip-clear" (click)="limpiarFiltros()">Limpiar todo</button>
   </div>
 
   <!-- CARGANDO -->
@@ -68,8 +186,8 @@
   </div>
 
   <!-- TABLA -->
-  <div *ngIf="!cargando() && !errorMsg() && hayResultados()" class="tbl-wrap">
-    <table class="tbl">
+  <div *ngIf="!cargando() && !errorMsg() && hayResultados()" class="tbl-wrap tbl-wrap-nomina">
+    <table class="tbl tbl-nomina">
       <thead>
         <tr>
           <th>Código ARSA</th>
@@ -84,22 +202,22 @@
       </thead>
       <tbody>
         <tr *ngFor="let e of empleadosFiltrados(); trackBy: trackByLegajo">
-          <td class="td-codigo">{{ e.codigo || '—' }}</td>
-          <td class="td-legajo">{{ e.legajo || '—' }}</td>
-          <td class="td-nombre">{{ e.apellido_nombre || '—' }}</td>
-          <td class="td-sede">{{ e.sede || '—' }}</td>
-          <td class="td-puesto">{{ e.puesto || '—' }}</td>
-          <td>
+          <td class="td-codigo" data-label="Código">{{ e.codigo || '—' }}</td>
+          <td class="td-legajo" data-label="Legajo">{{ e.legajo || '—' }}</td>
+          <td class="td-nombre" data-label="Empleado">{{ e.apellido_nombre || '—' }}</td>
+          <td class="td-sede" data-label="Sede">{{ e.sede || '—' }}</td>
+          <td class="td-puesto" data-label="Puesto">{{ e.puesto || '—' }}</td>
+          <td class="td-cat" data-label="Categoría">
             <span class="badge-cat" [ngClass]="catClass(e.categoria)">
               {{ catLabel(e.categoria) }}
             </span>
           </td>
-          <td>
+          <td class="td-estado" data-label="Estado">
             <span class="badge-estado" [ngClass]="estadoClass(e.estado_relev)">
               {{ estadoLabel(e.estado_relev) }}
             </span>
           </td>
-          <td>
+          <td class="td-ver">
             <button class="btn-ver">Ver</button>
           </td>
         </tr>
@@ -183,5 +301,30 @@
       </button>
     </div>
 
+  </div>
+</div>
+
+<!-- MODAL VER DESCRIPTIVO — solo lectura, abierto por el gerente desde su historial -->
+<div class="modal-overlay" *ngIf="modalVer.abierto" (click)="cerrarModalVer()">
+  <div class="modal-box modal-ver" (click)="$event.stopPropagation()">
+    <div class="modal-header">
+      <div class="modal-title">{{ modalVer.empleado?.apellido_nombre }}</div>
+      <div class="modal-sub">
+        {{ modalVer.empleado?.sede }} · {{ modalVer.empleado?.familia }}
+        <span *ngIf="modalVer.empleado?.fecha_firma">
+          · Firmado {{ formatearFechaFirma(modalVer.empleado.fecha_firma) }}
+        </span>
+      </div>
+      <button class="modal-close" (click)="cerrarModalVer()">✕</button>
+    </div>
+    <div class="modal-body modal-ver-body">
+      <iframe *ngIf="modalVer.docUrl" class="ver-doc" [src]="modalVer.docUrl"></iframe>
+      <div *ngIf="!modalVer.docUrl" class="ver-doc-vacio">
+        No hay link del descriptivo cargado.
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-s" (click)="cerrarModalVer()">Cerrar</button>
+    </div>
   </div>
 </div>

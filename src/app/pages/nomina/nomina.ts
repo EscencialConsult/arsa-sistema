@@ -1,6 +1,7 @@
 import { Component, OnInit, OnDestroy, signal, computed } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
+import { DomSanitizer, SafeResourceUrl } from '@angular/platform-browser';
 import { Subject, debounceTime, distinctUntilChanged, takeUntil } from 'rxjs';
 import { ApiService } from '../../services/api';
 import { estadoClass as estadoClassShared, estadoLabel as estadoLabelShared } from '../../shared/estados';
@@ -104,7 +105,34 @@ export class Nomina implements OnInit, OnDestroy {
     nivel_cct: '', estado_relev: 'PENDIENTE'
   };
 
-  constructor(private api: ApiService) {}
+  // ── Vista del gerente — historial de descriptivos firmados ────────
+  // Fuente única: backend (getDescriptivosFirmadosPorJefe). Filtra por
+  // jefe_legajo + firmado=SI. La búsqueda es client-side, igual a Relevamiento.
+  legajoJefe = '';
+  firmadosJefe = signal<any[]>([]);
+  cargandoJefe = signal(false);
+  errorJefe = signal('');
+  busquedaJefe = '';
+
+  modalVer: {
+    abierto: boolean;
+    empleado: any;
+    docUrl: SafeResourceUrl | null;
+  } = { abierto: false, empleado: null, docUrl: null };
+
+  get esGerente(): boolean { return this.rolUsuario === 'gerente'; }
+
+  // Filtrado client-side por nombre o legajo (lo que el usuario tipea en .tbl-search).
+  firmadosVisibles = computed(() => {
+    const q = this.busquedaJefe.trim().toLowerCase();
+    if (!q) return this.firmadosJefe();
+    return this.firmadosJefe().filter(e =>
+      (e.apellido_nombre || '').toLowerCase().includes(q) ||
+      (e.legajo || '').toLowerCase().includes(q)
+    );
+  });
+
+  constructor(private api: ApiService, private sanitizer: DomSanitizer) {}
 
   ngOnInit() {
     // Debounce para búsqueda de texto
@@ -116,11 +144,19 @@ export class Nomina implements OnInit, OnDestroy {
 
 const raw = localStorage.getItem('usuario');
 if (raw) {
-    this.rolUsuario = (JSON.parse(raw).rol || '').toLowerCase();
+    const u = JSON.parse(raw);
+    this.rolUsuario = (u.rol || '').toLowerCase();
+    this.legajoJefe = String(u.legajo || '').trim();
 }
 if (this.rolUsuario === 'rrhh') {
     this.filtroEstado = 'PRESENTADO A RRHH';
 }
+
+    // Gerente ve solo su historial de firmas — no carga los 860 empleados.
+    if (this.rolUsuario === 'gerente') {
+      this.cargarFirmadosJefe();
+      return;
+    }
 
     // Cargar todos los empleados al iniciar
     this.cargarNomina();
@@ -222,6 +258,28 @@ if (this.rolUsuario === 'rrhh') {
     this.errorMsg.set('');
   }
 
+  // ── Filtros: colapsable en celular + chips de filtros activos ─────
+  filtrosAbiertos = signal(false);
+  toggleFiltros() { this.filtrosAbiertos.set(!this.filtrosAbiertos()); }
+
+  // Cuántos desplegables están aplicados (para el badge del botón "Filtros")
+  get cantFiltrosActivos(): number {
+    return [this.filtroSede, this.filtroFamilia, this.filtroEstado].filter(Boolean).length;
+  }
+
+  // Código → nombre legible para los chips
+  nombreSede(code: string): string {
+    return SEDES.find(s => s.code === code)?.name || code;
+  }
+  nombreFamilia(code: string): string {
+    return FAMILIAS.find(f => f.code === code)?.name || code;
+  }
+
+  // Quitar un filtro individual desde su chip
+  quitarSede()    { this.filtroSede = '';    this.aplicarFiltros(); }
+  quitarFamilia() { this.filtroFamilia = ''; this.aplicarFiltros(); }
+  quitarEstado()  { this.filtroEstado = '';  this.aplicarFiltros(); }
+
   refrescar() {
     this.todosLosEmpleados = [];
     this.empleadosFiltrados.set([]);
@@ -304,5 +362,61 @@ if (this.rolUsuario === 'rrhh') {
       this.cerrarModal();
       this.refrescar();
     }, 2000);
+  }
+
+  // ── Vista del gerente — historial de firmas ─────────────────────
+  cargarFirmadosJefe(): void {
+    if (!this.legajoJefe) {
+      this.errorJefe.set('No pudimos identificar tu legajo. Cerrá sesión y volvé a entrar.');
+      return;
+    }
+    this.cargandoJefe.set(true);
+    this.errorJefe.set('');
+    this.api.getDescriptivosFirmadosPorJefe(this.legajoJefe).subscribe({
+      next: (res) => {
+        if (res.ok) {
+          this.firmadosJefe.set(res.data || []);
+        } else {
+          this.errorJefe.set(res.error || 'No se pudo cargar tu historial');
+          this.firmadosJefe.set([]);
+        }
+        this.cargandoJefe.set(false);
+      },
+      error: () => {
+        this.errorJefe.set('No se pudo conectar con el servidor');
+        this.cargandoJefe.set(false);
+      }
+    });
+  }
+
+  // Abre el descriptivo en solo lectura. Prioriza el definitivo si existe,
+  // si no muestra el borrador (que es lo que el jefe vio cuando firmó).
+  abrirModalVer(emp: any): void {
+    const link = emp.linkDefinitivo || emp.linkBorrador || '';
+    this.modalVer = {
+      abierto: true,
+      empleado: emp,
+      docUrl: this.armarDocUrl(link),
+    };
+  }
+
+  cerrarModalVer(): void {
+    this.modalVer = { abierto: false, empleado: null, docUrl: null };
+  }
+
+  // Misma transformación que /mi-descriptivo y el modal firmar del jefe.
+  private armarDocUrl(link: string): SafeResourceUrl | null {
+    if (!link) return null;
+    const base = link.replace(/\/(edit|preview|view|mobilebasic)\b.*$/, '').replace(/[?#].*$/, '');
+    const isMobile = typeof window !== 'undefined' && window.innerWidth < 768;
+    const url = `${base}/${isMobile ? 'mobilebasic' : 'preview'}`;
+    return this.sanitizer.bypassSecurityTrustResourceUrl(url);
+  }
+
+  formatearFechaFirma(fecha: string): string {
+    if (!fecha) return '';
+    const partes = String(fecha).split('-');
+    if (partes.length !== 3) return fecha;
+    return `${partes[2]}/${partes[1]}/${partes[0]}`;
   }
 }

@@ -66,7 +66,7 @@
 }
 
 .md-greeting {
-  font-size: 12px;
+  font-size: 14px;
   font-weight: 600;
   color: #fff;
   white-space: nowrap;
@@ -76,9 +76,9 @@
 }
 
 .md-greeting-sub {
-  font-size: 10px;
-  color: rgba(255, 255, 255, 0.6);
-  margin-top: 1px;
+  font-size: 11px;
+  color: rgba(255, 255, 255, 0.65);
+  margin-top: 2px;
 }
 
 /* Salir píldora: compacto, transparente translúcido */
@@ -112,21 +112,22 @@
   background: #FFF8F0;
   border-radius: 10px;
   border-left: 3px solid #E8834A;
-  padding: 10px 14px;
-  margin-bottom: 14px;
+  padding: 12px 16px;
+  margin-bottom: 18px;
+  box-shadow: 0 1px 3px rgba(10, 46, 74, .06);
 }
 
 .md-nombre {
-  font-size: 13px;
+  font-size: 15px;
   font-weight: 600;
   color: #1A2E4A;
   line-height: 1.3;
 }
 
 .md-meta {
-  font-size: 11px;
-  color: #666;
-  margin-top: 1px;
+  font-size: 12px;
+  color: #5E7A8F;
+  margin-top: 2px;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -210,37 +211,40 @@
 
 /* ── Pantalla 1: revisar (título + intro) ────────────────────── */
 .md-titulo {
-  font-size: 17px;
+  font-size: 18px;
   font-weight: 600;
   color: #1A2E4A;
   margin: 8px 4px 6px;
+  letter-spacing: -.01em;
 }
 
 .md-intro {
-  font-size: 12px;
-  color: #888;
-  line-height: 1.5;
-  margin: 0 4px 14px;
+  font-size: 13px;
+  color: #5E7A8F;
+  line-height: 1.55;
+  margin: 0 4px 16px;
 }
 
 @media (min-width: 768px) {
   .md-titulo {
-    font-size: 19px;
+    font-size: 22px;
     margin: 8px 0 6px;
   }
   .md-intro {
-    font-size: 13px;
-    margin: 0 0 16px;
+    font-size: 14px;
+    margin: 0 0 18px;
   }
 }
 
 /* ── Doc wrap + iframe ───────────────────────────────────────── */
 .md-doc-wrap {
   background: #F8FBFF;
-  border: 0.5px solid #C8DFF0;
-  border-radius: 8px;
+  border: 1px solid #D6E6F2;
+  border-radius: 10px;
   overflow: hidden;
-  margin-bottom: 14px;
+  margin-bottom: 16px;
+  /* Sombra sutil: el documento se siente como una hoja, no como un recuadro plano */
+  box-shadow: 0 2px 12px rgba(10, 46, 74, .07);
 }
 
 .md-doc-iframe {
@@ -248,7 +252,9 @@
   min-width: 100%;
   max-width: 100%;
   height: 100%;
-  min-height: 450px;
+  /* Ventana de lectura cómoda: al menos 450px, y más alta en pantallas
+     altas (60% del alto) para reducir el "scroll dentro del scroll". */
+  min-height: max(450px, 60vh);
   border: 0;
   display: block;
   -webkit-overflow-scrolling: touch;
@@ -501,7 +507,8 @@
   border: 1px solid #F0C8A0;
   border-radius: 10px;
   padding: 14px 16px;
-  margin-top: 14px;
+  margin-top: 16px;
+  box-shadow: 0 1px 3px rgba(232, 131, 74, .08);
 }
 
 .md-comentario-label {

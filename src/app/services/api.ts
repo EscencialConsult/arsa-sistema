@@ -86,6 +86,15 @@ export class ApiService {
     return this.post({ action: 'firmarRevision', data: payload });
   }
 
+  // Historial: descriptivos que este jefe ya firmó.
+  // Análogo a getNominaPorJefe pero filtrado por firmados, con fecha_firma.
+  getDescriptivosFirmadosPorJefe(legajoJefe: string): Observable<any> {
+    const params = new HttpParams()
+      .set('action', 'getDescriptivosFirmadosPorJefe')
+      .set('legajo_jefe', legajoJefe);
+    return this.http.get(this.url, { params });
+  }
+
   stats(): Observable<any> {
     const params = new HttpParams().set('action', 'stats');
     return this.http.get(this.url, { params });

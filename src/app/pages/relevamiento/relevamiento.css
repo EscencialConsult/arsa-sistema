@@ -26,9 +26,10 @@
 }
 
 .ph-title {
-  font-family: 'Bebas Neue', sans-serif;
-  font-size: 28px;
-  letter-spacing: .04em;
+  font-family: var(--font-display);
+  font-size: 26px;
+  font-weight: 700;
+  letter-spacing: .01em;
   color: #0A2E4A;
   text-transform: uppercase;
 }
@@ -42,7 +43,7 @@
 .btn {
   padding: 9px 18px;
   border-radius: 7px;
-  font-family: 'DM Sans', sans-serif;
+  font-family: var(--font-body);
   font-size: 13px;
   font-weight: 500;
   cursor: pointer;
@@ -98,9 +99,10 @@
 }
 
 .stat-num {
-  font-family: 'Bebas Neue', sans-serif;
-  font-size: 30px;
-  letter-spacing: .02em;
+  font-family: var(--font-display);
+  font-size: 32px;
+  font-weight: 700;
+  letter-spacing: -.01em;
   color: #0A2E4A;
   line-height: 1;
 }
@@ -241,7 +243,7 @@
   border: 1.5px solid rgba(75, 174, 212, .25);
   border-radius: 8px;
   background: #fff;
-  font-family: 'DM Sans', sans-serif;
+  font-family: var(--font-body);
   font-size: 13px;
   color: #0A2E4A;
   outline: none;
@@ -284,7 +286,7 @@
   border: 1.5px solid rgba(75, 174, 212, .25);
   border-radius: 8px;
   background: #fff;
-  font-family: 'DM Sans', sans-serif;
+  font-family: var(--font-body);
   font-size: 13px;
   color: #0A2E4A;
   cursor: pointer;
@@ -300,6 +302,69 @@
 .tbl-filter:focus {
   border-color: #4BAED4;
 }
+
+/* ── Botón Filtros (solo celular) + wrapper de desplegables ── */
+/* En desktop el botón no se ve y los selects van inline en la toolbar */
+.btn-filtros { display: none; }
+.tbl-filtros { display: contents; }
+
+/* ── Chips de filtros activos ── */
+.filtros-activos {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin: -4px 0 14px;
+}
+
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 5px 5px 5px 12px;
+  background: #eaf4fb;
+  border: 1px solid rgba(75, 174, 212, .3);
+  border-radius: 16px;
+  font-family: var(--font-body);
+  font-size: 12.5px;
+  font-weight: 500;
+  color: #1A5F8A;
+  white-space: nowrap;
+}
+
+.chip-tipo { color: #7A9AAF; font-weight: 600; }
+
+.chip-x {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  border: none;
+  background: rgba(26, 95, 138, .12);
+  color: #1A5F8A;
+  border-radius: 50%;
+  cursor: pointer;
+  font-size: 10px;
+  line-height: 1;
+  transition: all .15s;
+}
+
+.chip-x:hover { background: #1A5F8A; color: #fff; }
+
+.chip-clear {
+  border: none;
+  background: none;
+  cursor: pointer;
+  color: #7A9AAF;
+  font-family: var(--font-body);
+  font-size: 12.5px;
+  font-weight: 600;
+  text-decoration: underline;
+  padding: 5px 8px;
+}
+
+.chip-clear:hover { color: #1A5F8A; }
 
 /* ── Tabla ──────────────────────────────────── */
 .tbl-wrap {
@@ -364,12 +429,12 @@
 .td-empleado .emp-meta {
   font-size: 11px;
   color: #7A9AAF;
-  font-family: 'DM Mono', monospace;
+  font-family: var(--font-mono);
   margin-top: 2px;
 }
 
 .td-codigo {
-  font-family: 'DM Mono', monospace;
+  font-family: var(--font-mono);
   font-size: 11.5px;
   color: #1A5F8A;
 }
@@ -383,7 +448,7 @@
 .select-estado {
   padding: 5px 28px 5px 12px;
   border-radius: 20px;
-  font-family: 'DM Sans', sans-serif;
+  font-family: var(--font-body);
   font-size: 11.5px;
   font-weight: 600;
   cursor: pointer;
@@ -518,7 +583,7 @@
   font-size: 11.5px;
   color: #4BAED4;
   cursor: pointer;
-  font-family: 'DM Sans', sans-serif;
+  font-family: var(--font-body);
   transition: all .15s;
 }
 
@@ -636,7 +701,7 @@
   border: 1.5px solid rgba(75, 174, 212, .2);
   border-radius: 8px;
   background: #fff;
-  font-family: 'DM Sans', sans-serif;
+  font-family: var(--font-body);
   font-size: 13px;
   color: #0A2E4A;
   outline: none;
@@ -715,7 +780,7 @@
   border-radius: 4px;
   font-size: 11px;
   font-weight: 700;
-  font-family: 'DM Mono', monospace;
+  font-family: var(--font-mono);
   letter-spacing: .04em;
 }
 
@@ -907,9 +972,10 @@
 }
 
 .modal-title {
-  font-family: 'Bebas Neue', sans-serif;
-  font-size: 20px;
-  letter-spacing: .04em;
+  font-family: var(--font-display);
+  font-size: 19px;
+  font-weight: 700;
+  letter-spacing: .01em;
   color: #0A2E4A;
   text-transform: uppercase;
 }
@@ -956,7 +1022,7 @@
   padding: 10px 14px;
   border: 1.5px solid rgba(75, 174, 212, .3);
   border-radius: 8px;
-  font-family: 'DM Sans', sans-serif;
+  font-family: var(--font-body);
   font-size: 13px;
   color: #0A2E4A;
   outline: none;
@@ -974,7 +1040,7 @@
   padding: 10px 14px;
   border: 1.5px solid rgba(75, 174, 212, .3);
   border-radius: 8px;
-  font-family: 'DM Sans', sans-serif;
+  font-family: var(--font-body);
   font-size: 13px;
   color: #0A2E4A;
   outline: none;
@@ -1009,6 +1075,17 @@
     padding: 20px 16px;
   }
 
+  /* Header apilado: título arriba, badge de rol + Exportar CSV abajo */
+  .ph {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 12px;
+  }
+  .ph-right {
+    width: 100%;
+    align-items: center;
+  }
+
   .tbl-toolbar {
     flex-direction: column;
     align-items: stretch;
@@ -1018,18 +1095,164 @@
     min-width: unset;
   }
 
-  .stats-row {
-    gap: 8px;
+  /* El botón Filtros aparece; los desplegables se colapsan debajo */
+  .btn-filtros {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 7px;
+    padding: 10px 14px;
+    border: 1.5px solid rgba(75, 174, 212, .25);
+    border-radius: 8px;
+    background: #fff;
+    color: #1A5F8A;
+    font-family: var(--font-body);
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all .15s;
+  }
+  .btn-filtros.activo { border-color: #4BAED4; background: #eaf4fb; }
+  .filtros-badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 18px;
+    height: 18px;
+    padding: 0 5px;
+    background: #1A5F8A;
+    color: #fff;
+    border-radius: 9px;
+    font-size: 11px;
+    font-weight: 700;
   }
 
+  /* Colapsados por defecto; se despliegan en columna al abrir */
+  .tbl-filtros { display: none; }
+  .tbl-filtros.abierto {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  /* KPIs en grilla pareja (3 por fila) en vez de flex que se amontona */
+  .stats-row {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 8px;
+  }
   .stat-card {
-    min-width: 70px;
+    min-width: 0;
     padding: 12px 14px;
+  }
+  /* Avance general ocupa la fila completa, con su barra de progreso */
+  .s-avance {
+    grid-column: 1 / -1;
+    min-width: 0;
   }
 
   .privado-grid {
     grid-template-columns: 1fr;
   }
+
+  /* Red de seguridad: cualquier otra tabla scrollea en vez de cortarse */
+  .tbl-wrap { overflow-x: auto; }
+
+  /* ─────────────────────────────────────────────────────────────
+     RELEVAMIENTO: la tabla se convierte en tarjetas (una por empleado).
+     La fila expandible de campos privados (.fila-privada) se conserva
+     como bloque a lo ancho, pegado debajo de su tarjeta.
+     ───────────────────────────────────────────────────────────── */
+  .tbl-wrap-relev {
+    background: transparent;
+    border: none;
+    overflow: visible;
+  }
+  .tbl-relev,
+  .tbl-relev tbody { display: block; width: 100%; }
+  .tbl-relev thead { display: none; }
+
+  /* Fila principal = tarjeta */
+  .tbl-relev tbody tr:not(.fila-privada) {
+    display: flex;
+    flex-direction: column;
+    gap: 9px;
+    background: #fff;
+    border: 1px solid rgba(10, 46, 74, .10);
+    border-radius: 12px;
+    padding: 14px 16px;
+    margin-bottom: 12px;
+    box-shadow: 0 2px 10px rgba(10, 46, 74, .05);
+  }
+  .tbl-relev tbody tr:not(.fila-privada):hover { background: #fff; }
+
+  /* Celdas como etiqueta : valor */
+  .tbl-relev tbody tr:not(.fila-privada) td {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 0;
+    border: none;
+  }
+  .tbl-relev tbody tr:not(.fila-privada) td::before {
+    content: attr(data-label);
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: .04em;
+    color: #7A9AAF;
+    flex-shrink: 0;
+  }
+
+  /* Empleado = título de la tarjeta (bloque, sin etiqueta) */
+  .tbl-relev tbody tr:not(.fila-privada) td.td-empleado {
+    display: block;
+    padding-bottom: 9px;
+    border-bottom: 1px solid rgba(10, 46, 74, .07);
+  }
+  .tbl-relev tbody tr:not(.fila-privada) td.td-empleado::before { display: none; }
+
+  /* El select de estado se ve cómodo a la derecha */
+  .tbl-relev tbody tr:not(.fila-privada) td.td-estado-cell .select-estado { min-width: 160px; }
+
+  /* Botón expandir centrado al pie de la tarjeta */
+  .tbl-relev tbody tr:not(.fila-privada) td.td-expand {
+    justify-content: center;
+    margin-top: 2px;
+  }
+  .tbl-relev tbody tr:not(.fila-privada) td.td-expand::before { display: none; }
+
+  /* Al expandir, la tarjeta se une con el panel de abajo */
+  .tbl-relev tbody tr.fila-activa {
+    margin-bottom: 0;
+    border-radius: 12px 12px 0 0;
+    border-bottom: none;
+  }
+  .tbl-relev tbody tr.fila-privada { display: block; }
+  .tbl-relev tbody tr.fila-privada td {
+    display: block;
+    padding: 0;
+    border: none;
+  }
+  .tbl-relev tbody tr.fila-privada {
+    background: #fff;
+    border: 1px solid rgba(10, 46, 74, .10);
+    border-top: none;
+    border-radius: 0 0 12px 12px;
+    padding: 0 14px 14px;
+    margin-bottom: 12px;
+  }
+}
+
+/* Celular: KPIs de a 2 por fila, con números más chicos para que no abulten */
+@media (max-width: 560px) {
+  .stats-row {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  .stat-num { font-size: 22px; }
+  .stat-card { padding: 11px 13px; }
+  .stat-label { font-size: 10px; }
 }
 
 /* ══ AGREGADOS — lógica de publicación ══════════════════════════════ */
@@ -1292,6 +1515,17 @@
 .panel-grid-privado .priv-textarea {
   height: 100%;
   min-height: 180px;
+}
+
+/* Celular: el panel expandido pasa a una sola columna.
+   En desktop/tablet quedan las multi-columnas; acá no entran. */
+@media (max-width: 640px) {
+  .panel-grid-2,
+  .panel-grid-acceso,
+  .panel-grid-privado {
+    grid-template-columns: 1fr;
+  }
+  .panel-grid-privado .priv-textarea { min-height: 120px; }
 }
 
 .acceso-badge {

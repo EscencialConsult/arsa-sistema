@@ -1016,6 +1016,29 @@ export class Relevamiento implements OnInit {
     this.errorMsg.set('');
   }
 
+  // ── Filtros: colapsable en celular + chips de filtros activos ─────
+  filtrosAbiertos = signal(false);
+  toggleFiltros() { this.filtrosAbiertos.set(!this.filtrosAbiertos()); }
+
+  // Cuántos desplegables están aplicados (para el badge del botón "Filtros")
+  get cantFiltrosActivos(): number {
+    return [this.filtroSede, this.filtroFamilia, this.filtroEstado].filter(Boolean).length;
+  }
+
+  // Código → nombre legible para los chips
+  nombreSede(code: string): string {
+    return SEDES.find(s => s.code === code)?.name || code;
+  }
+  nombreFamilia(code: string): string {
+    return FAMILIAS.find(f => f.code === code)?.name || code;
+  }
+
+  // Quitar un filtro individual desde su chip (buscar() re-aplica o vacía la lista)
+  quitarBusqueda() { this.busqueda = '';      this.buscar(); }
+  quitarSede()     { this.filtroSede = '';    this.buscar(); }
+  quitarFamilia()  { this.filtroFamilia = ''; this.buscar(); }
+  quitarEstado()   { this.filtroEstado = '';  this.buscar(); }
+
   refrescar() {
     this.todosLosEmpleados = [];
     this.empleados.set([]);

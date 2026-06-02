@@ -134,25 +134,60 @@
         </svg>
       </button>
     </div>
-    <select class="tbl-filter" [(ngModel)]="filtroSede" (change)="onFiltroChange()">
-      <option value="">Todas las sedes</option>
-      <option *ngFor="let s of listaSedes" [value]="s.code">{{ s.name }}</option>
-    </select>
-    <select class="tbl-filter" [(ngModel)]="filtroFamilia" (change)="onFiltroChange()">
-      <option value="">Todas las familias</option>
-      <option *ngFor="let f of listaFamilias" [value]="f.code">{{ f.name }}</option>
-    </select>
-    <select class="tbl-filter" [(ngModel)]="filtroEstado" (change)="onFiltroChange()">
-      <option value="">Todos los estados</option>
-      <option value="PENDIENTE">Pendiente</option>
-      <option value="ENTREVISTADO">Entrevistado</option>
-      <option value="REVISIÓN COLABORADOR">Revisión colaborador</option>
-      <option value="REVISIÓN JEFE">Revisión jefe</option>
-      <option value="PRESENTADO A RRHH">Presentado a RRHH</option>
-      <option value="SELLADO">Sellado</option>
-      <option value="OBSERVADO">Observado</option>
-      <option value="FUERA DE FLUJO">Fuera de flujo</option>
-    </select>
+    <!-- Botón Filtros: solo visible en celular/tablet. Abre/cierra los desplegables. -->
+    <button class="btn-filtros" (click)="toggleFiltros()"
+            [class.activo]="filtrosAbiertos() || cantFiltrosActivos > 0">
+      <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24"
+           fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/>
+      </svg>
+      Filtros
+      <span class="filtros-badge" *ngIf="cantFiltrosActivos > 0">{{ cantFiltrosActivos }}</span>
+    </button>
+
+    <!-- Desplegables: en desktop van inline en la toolbar; en celular colapsan -->
+    <div class="tbl-filtros" [class.abierto]="filtrosAbiertos()">
+      <select class="tbl-filter" [(ngModel)]="filtroSede" (change)="onFiltroChange()">
+        <option value="">Todas las sedes</option>
+        <option *ngFor="let s of listaSedes" [value]="s.code">{{ s.name }}</option>
+      </select>
+      <select class="tbl-filter" [(ngModel)]="filtroFamilia" (change)="onFiltroChange()">
+        <option value="">Todas las familias</option>
+        <option *ngFor="let f of listaFamilias" [value]="f.code">{{ f.name }}</option>
+      </select>
+      <select class="tbl-filter" [(ngModel)]="filtroEstado" (change)="onFiltroChange()">
+        <option value="">Todos los estados</option>
+        <option value="PENDIENTE">Pendiente</option>
+        <option value="ENTREVISTADO">Entrevistado</option>
+        <option value="REVISIÓN COLABORADOR">Revisión colaborador</option>
+        <option value="REVISIÓN JEFE">Revisión jefe</option>
+        <option value="PRESENTADO A RRHH">Presentado a RRHH</option>
+        <option value="SELLADO">Sellado</option>
+        <option value="OBSERVADO">Observado</option>
+        <option value="FUERA DE FLUJO">Fuera de flujo</option>
+      </select>
+    </div>
+  </div>
+
+  <!-- CHIPS de filtros activos: dejan claro qué se está viendo y cómo resetear -->
+  <div class="filtros-activos" *ngIf="hayFiltro">
+    <span class="chip" *ngIf="busqueda">
+      <span class="chip-tipo">Búsqueda:</span>&nbsp;"{{ busqueda }}"
+      <button class="chip-x" (click)="quitarBusqueda()" aria-label="Quitar búsqueda">✕</button>
+    </span>
+    <span class="chip" *ngIf="filtroSede">
+      {{ nombreSede(filtroSede) }}
+      <button class="chip-x" (click)="quitarSede()" aria-label="Quitar sede">✕</button>
+    </span>
+    <span class="chip" *ngIf="filtroFamilia">
+      {{ nombreFamilia(filtroFamilia) }}
+      <button class="chip-x" (click)="quitarFamilia()" aria-label="Quitar familia">✕</button>
+    </span>
+    <span class="chip" *ngIf="filtroEstado">
+      {{ estadoLabel(filtroEstado) }}
+      <button class="chip-x" (click)="quitarEstado()" aria-label="Quitar estado">✕</button>
+    </span>
+    <button class="chip-clear" (click)="limpiarFiltros()">Limpiar todo</button>
   </div>
 
   <!-- AVISO -->
@@ -193,8 +228,8 @@
   </div>
 
   <!-- TABLA -->
-  <div *ngIf="hayResultados() && !cargando()" class="tbl-wrap">
-    <table class="tbl">
+  <div *ngIf="hayResultados() && !cargando()" class="tbl-wrap tbl-wrap-relev">
+    <table class="tbl tbl-relev">
       <thead>
         <tr>
           <th>Empleado</th>
@@ -218,18 +253,18 @@
             </td>
 
             <!-- Código -->
-            <td class="td-codigo">{{ e.codigo }}</td>
+            <td class="td-codigo" data-label="Código">{{ e.codigo }}</td>
 
             <!-- Sede -->
-            <td class="td-sede">{{ e.sedeName || e.sede }}</td>
+            <td class="td-sede" data-label="Sede">{{ e.sedeName || e.sede }}</td>
 
             <!-- Familia -->
-            <td>
+            <td class="td-familia" data-label="Familia">
               <span class="fam-badge" [attr.data-fam]="e.familia">{{ e.familia }}</span>
             </td>
 
             <!-- Estado -->
-            <td>
+            <td class="td-estado-cell" data-label="Estado">
               <div class="estado-wrap">
                 <select class="select-estado" [ngClass]="estadoClass(e.estado)" [ngModel]="e.estado"
                   (change)="cambiarEstado(e, $any($event.target).value)"
@@ -246,7 +281,7 @@
             </td>
 
             <!-- Expandir panel -->
-            <td>
+            <td class="td-expand">
               <button *ngIf="esPrivilegiado" class="btn-detalle" [class.abierto]="filaAbierta === e.legajo"
                 (click)="toggleDetalle(e.legajo)" title="Campos privados">
                 <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"
