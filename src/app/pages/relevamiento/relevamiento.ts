@@ -307,7 +307,9 @@ export class Relevamiento implements OnInit {
 
   // ── Filtros ───────────────────────────────────────────────────────
   onFiltroChange() {
-    if (!this.busqueda) this.buscar();
+    // Re-filtrar siempre. Antes solo disparaba cuando la búsqueda estaba vacía,
+    // así que con texto activo cambiar un dropdown no hacía nada.
+    this.buscar();
   }
 
   // ── Búsqueda — lee Nomina y filtra localmente ─────────────────────

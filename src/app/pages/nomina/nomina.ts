@@ -91,7 +91,10 @@ export class Nomina implements OnInit, OnDestroy {
 
   // ── Internos ─────────────────────────────────────────────────────
   todosLosEmpleados: Empleado[] = [];
-  private busquedaSubject = new Subject<void>();
+  // Subject<string> (no <void>): distinctUntilChanged compara el texto real.
+  // Con <void> emitía siempre undefined y distinct rechazaba todo después de la
+  // primera emisión → la búsqueda en vivo solo andaba la primera vez.
+  private busquedaSubject = new Subject<string>();
   private destroy$        = new Subject<void>();
   rolUsuario: string = '';
 
@@ -123,14 +126,17 @@ export class Nomina implements OnInit, OnDestroy {
   get esGerente(): boolean { return this.rolUsuario === 'gerente'; }
 
   // Filtrado client-side por nombre o legajo (lo que el usuario tipea en .tbl-search).
-  firmadosVisibles = computed(() => {
+  // Método (no computed) porque busquedaJefe es un string plano, no un signal,
+  // y un computed no se invalida al cambiar un property normal. Como método se
+  // re-evalúa en cada change detection. La lista del jefe es chica, sobra.
+  firmadosVisibles(): any[] {
     const q = this.busquedaJefe.trim().toLowerCase();
     if (!q) return this.firmadosJefe();
     return this.firmadosJefe().filter(e =>
       (e.apellido_nombre || '').toLowerCase().includes(q) ||
       (e.legajo || '').toLowerCase().includes(q)
     );
-  });
+  }
 
   constructor(private api: ApiService, private sanitizer: DomSanitizer) {}
 
@@ -239,11 +245,13 @@ if (this.rolUsuario === 'rrhh') {
   }
 
   buscar() {
-    this.busquedaSubject.next();
+    this.busquedaSubject.next(this.busqueda);
   }
 
   onFiltroChange() {
-    this.busqueda = '';
+    // Conservar la búsqueda actual: el admin combina texto + dropdown todo el
+    // tiempo. Antes borrábamos el texto al cambiar el dropdown y obligaba a
+    // re-tipear.
     this.aplicarFiltros();
   }
 
