@@ -69,14 +69,4 @@ export class LoginComponent {
     this.router.navigate([rol === 'empleado' ? '/mi-descriptivo' : '/dashboard']);
   }
 
-  loginRapido(rol: string) {
-    const demos: any = {
-      admin:    { usuario: 'admin',    password: 'admin' },
-      rrhh:     { usuario: 'rrhh',     password: 'rrhh' },
-      empleado: { usuario: 'empleado', password: 'empleado' }
-    };
-    this.usuario = demos[rol].usuario;
-    this.password = demos[rol].password;
-    this.ingresar();
-  }
 }
