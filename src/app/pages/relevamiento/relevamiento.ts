@@ -405,12 +405,21 @@ export class Relevamiento implements OnInit {
 
   // ── Cambiar estado ────────────────────────────────────────────────
   // Estados a los que se avanza con modal (para que el actor pueda dejar
-  // una nota opcional para quien sigue aguas abajo).
+  // una nota para quien sigue aguas abajo). En la mayoría es opcional;
+  // para OBSERVADO el grafo marca `requiere: 'observacion'` y el modal
+  // la trata como obligatoria (botón deshabilitado hasta que haya texto).
   private readonly ESTADOS_CON_MODAL = [
     'REVISIÓN COLABORADOR',
     'REVISIÓN JEFE',
     'PRESENTADO A RRHH',
+    'OBSERVADO',
   ];
+
+  // Helper para la UI del modal: cuándo la observación es obligatoria.
+  // Hoy solo OBSERVADO la exige (en el grafo: `requiere: 'observacion'`).
+  observacionRequerida(destino: string): boolean {
+    return destino === 'OBSERVADO';
+  }
 
   cambiarEstado(emp: any, nuevoEstado: string): void {
     // Si el dropdown re-emitió el estado actual (caso normal cuando se cierra modal), no hacer nada.

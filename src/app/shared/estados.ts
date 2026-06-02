@@ -121,9 +121,9 @@ export function estadoClass(estado: string, contexto: ContextoBadge): string {
 // actualizar la otra. La validación de verdad vive en el backend; este grafo
 // está acá solo para calcular qué opciones mostrar en la UI sin round-trip.
 //
-// La transición rrhh → OBSERVADO (rebote con observación) existe en backend
-// pero NO se incluye acá todavía: el botón "devolver con observación" se
-// conecta en una fase posterior.
+// La transición rrhh → OBSERVADO (rebote con observación) está cableada
+// abajo. requiere: 'observacion' → el modal de avance la trata como
+// obligatoria, no opcional (el frontend deshabilita el botón si está vacía).
 
 export type Rol = 'admin' | 'rrhh';
 export type Requisito = 'link' | 'observacion' | null;
@@ -145,6 +145,11 @@ export const TRANSICIONES: Transicion[] = [
   // FORWARD rrhh — sella. NO exige link definitivo: RRHH sella sobre el
   // borrador + observaciones. El link definitivo se sube después.
   { from: 'PRESENTADO A RRHH',    to: 'SELLADO',              roles: ['rrhh'],  requiere: null },
+
+  // REBOTE rrhh → admin — devolver con observación.
+  // `requiere: 'observacion'` lo hace obligatorio: el frontend deshabilita el
+  // botón hasta que haya texto, el backend rechaza si llegara vacío.
+  { from: 'PRESENTADO A RRHH',    to: 'OBSERVADO',            roles: ['rrhh'],  requiere: 'observacion' },
 
   // OBSERVADO admin — reinyección a cualquier punto del flujo
   { from: 'OBSERVADO',            to: 'PENDIENTE',            roles: ['admin'], requiere: null },

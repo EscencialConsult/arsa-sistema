@@ -455,24 +455,46 @@
 <div class="modal-overlay" *ngIf="modalAvance.abierto" (click)="cerrarModalAvance()">
   <div class="modal" (click)="$event.stopPropagation()">
     <div class="modal-header">
-      <div class="modal-title">Avanzar a {{ estadoLabel(modalAvance.destino) }}</div>
+      <div class="modal-title">
+        {{ observacionRequerida(modalAvance.destino) ? 'Devolver con observación' : 'Avanzar a ' + estadoLabel(modalAvance.destino) }}
+      </div>
       <div class="modal-sub">{{ modalAvance.empleado?.apellido_nombre }}</div>
       <div class="modal-aclaracion">
-        Podés dejar un comentario para el próximo revisor. Es opcional.
+        <ng-container *ngIf="!observacionRequerida(modalAvance.destino)">
+          Podés dejar un comentario para el próximo revisor. Es opcional.
+        </ng-container>
+        <ng-container *ngIf="observacionRequerida(modalAvance.destino)">
+          Escribí el motivo del rebote — Admin lo va a ver y va a corregir lo señalado antes de re-presentar a RRHH.
+        </ng-container>
       </div>
       <button class="modal-close" (click)="cerrarModalAvance()">✕</button>
     </div>
     <div class="modal-body">
-      <label class="modal-label">Comentario (opcional)</label>
+      <label class="modal-label">
+        {{ observacionRequerida(modalAvance.destino) ? 'Motivo del rebote *' : 'Comentario (opcional)' }}
+      </label>
       <textarea class="modal-textarea" rows="5"
-        placeholder="Aclaraciones, contexto o pendientes para quien revisa..."
+        [placeholder]="observacionRequerida(modalAvance.destino)
+          ? 'Detallá qué hay que corregir antes de re-presentar...'
+          : 'Aclaraciones, contexto o pendientes para quien revisa...'"
         [(ngModel)]="modalAvance.texto"></textarea>
-      <div class="modal-hint">La nota queda guardada y la ve quien siga el flujo.</div>
+      <div class="modal-hint">
+        <ng-container *ngIf="!observacionRequerida(modalAvance.destino)">
+          La nota queda guardada y la ve quien siga el flujo.
+        </ng-container>
+        <ng-container *ngIf="observacionRequerida(modalAvance.destino) && !modalAvance.texto.trim()">
+          ⚠ El motivo es obligatorio para devolver.
+        </ng-container>
+        <ng-container *ngIf="observacionRequerida(modalAvance.destino) && modalAvance.texto.trim()">
+          Se guarda en obs_rrhh del descriptivo y queda como histórico de la devolución.
+        </ng-container>
+      </div>
     </div>
     <div class="modal-footer">
       <button class="btn btn-s" (click)="cerrarModalAvance()">Cancelar</button>
-      <button class="btn btn-p" (click)="confirmarAvance()">
-        Avanzar a {{ estadoLabel(modalAvance.destino) }}
+      <button class="btn btn-p" (click)="confirmarAvance()"
+              [disabled]="observacionRequerida(modalAvance.destino) && !modalAvance.texto.trim()">
+        {{ observacionRequerida(modalAvance.destino) ? 'Devolver con observación' : 'Avanzar a ' + estadoLabel(modalAvance.destino) }}
       </button>
     </div>
   </div>

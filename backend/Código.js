@@ -1660,11 +1660,14 @@ function actualizarEstado(legajo, nuevoEstado, rol, observacion, forzar, autorNo
     observacionGuardada = true;
   }
 
-  // Registrar trazabilidad del SELLADO (Punto 1 del cierre de RRHH).
-  // Solo se ejecuta cuando RRHH sella. Para el resto de transiciones, no toca
-  // nada de las nuevas columnas — la transición a OBSERVADO va en otro commit.
+  // Registrar trazabilidad de la acción de RRHH (sellado o devolución).
+  // Las 3 columnas AJ/AK/AL (sello_rrhh / fecha_sello / obs_rrhh) son
+  // "RRHH-action-specific": guardan QUIÉN/CUÁNDO/QUÉ-OBSERVÓ del último acto
+  // formal de RRHH sobre el descriptivo. SELLADO sin observación, OBSERVADO
+  // con observación obligatoria (ya validada por validarTransicion).
   let selloRegistrado = false;
-  if (nuevo === 'SELLADO' && String(rol).toLowerCase() === 'rrhh') {
+  const rolNorm = String(rol).toLowerCase();
+  if (rolNorm === 'rrhh' && (nuevo === 'SELLADO' || nuevo === 'OBSERVADO')) {
     const cols = _asegurarColumnasSelloRrhh(hoja);
     if (cols) {
       const nombre = str(autorNombre);
@@ -1676,6 +1679,12 @@ function actualizarEstado(legajo, nuevoEstado, rol, observacion, forzar, autorNo
         : (lg ? '(' + lg + ')' : '— sin autor identificado —');
       hoja.getRange(rowIndex + 1, cols.sello_rrhh).setValue(huella);
       hoja.getRange(rowIndex + 1, cols.fecha_sello).setValue(new Date());
+      // obs_rrhh: solo en devoluciones. Para SELLADO queda vacía (el sello
+      // puede o no llevar observación, pero por convención la guardamos solo
+      // cuando es un rebote con motivo).
+      if (nuevo === 'OBSERVADO' && str(observacion)) {
+        hoja.getRange(rowIndex + 1, cols.obs_rrhh).setValue(observacion);
+      }
       selloRegistrado = true;
     }
   }
