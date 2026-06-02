@@ -758,9 +758,27 @@ export class Relevamiento implements OnInit {
     this.modalFirmar = { abierto: false, empleado: null, observacion: '', firmando: false, docUrl: null };
   }
 
-  confirmarFirmar(): void {
+  // ── Confirmación previa a la firma ────────────────────────────────
+  // Modal chico encima del modal grande de firmar. Sin esto, click en
+  // "Firmar" disparaba el POST irreversible directo. Ahora pide OK explícito.
+  modalConfirmFirma = false;
+
+  abrirConfirmFirma(): void {
     const m = this.modalFirmar;
     if (!m.empleado || m.firmando) return;
+    this.modalConfirmFirma = true;
+  }
+
+  cerrarConfirmFirma(): void {
+    this.modalConfirmFirma = false;
+  }
+
+  // Renombrada desde confirmarFirmar(): ahora hace el POST real. Llamada
+  // solo desde el "Sí, firmar" del modal de confirmación.
+  ejecutarFirmaReal(): void {
+    const m = this.modalFirmar;
+    if (!m.empleado || m.firmando) return;
+    this.modalConfirmFirma = false;
     m.firmando = true;
     this.api.firmarRevision({
       legajo_empleado: m.empleado.legajo,

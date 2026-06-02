@@ -690,9 +690,25 @@
       <button class="btn btn-s" (click)="cerrarModalFirmar()" [disabled]="modalFirmar.firmando">
         Cancelar
       </button>
-      <button class="btn btn-firmar" (click)="confirmarFirmar()" [disabled]="modalFirmar.firmando">
+      <button class="btn btn-firmar" (click)="abrirConfirmFirma()" [disabled]="modalFirmar.firmando">
         {{ modalFirmar.firmando ? 'Firmando...' : 'Firmar' }}
       </button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL CONFIRMACIÓN ANTES DE FIRMAR (encima del modal de firmar) -->
+<div class="confirm-modal-overlay" *ngIf="modalConfirmFirma" (click)="cerrarConfirmFirma()">
+  <div class="confirm-modal" (click)="$event.stopPropagation()">
+    <div class="confirm-modal-icon">✓</div>
+    <h3 class="confirm-modal-title">¿Confirmás la firma?</h3>
+    <p class="confirm-modal-text">
+      Vas a firmar el descriptivo de <strong>{{ modalFirmar.empleado?.apellido_nombre }}</strong>.
+      Una vez firmado no se puede revertir desde acá.
+    </p>
+    <div class="confirm-modal-actions">
+      <button class="confirm-modal-btn-cancel" (click)="cerrarConfirmFirma()">Cancelar</button>
+      <button class="confirm-modal-btn-confirm" (click)="ejecutarFirmaReal()">Sí, firmar</button>
     </div>
   </div>
 </div>
